@@ -82,27 +82,158 @@ Important options:
 * _advertise-client-urls_: address in which ETCD listens. Default port is 2379. This is the address that has to be configured in the kube-apiserver to reach the ETCD.
 * _initial-cluster_: Is where the diferent ETCD controllers are running in an HA environment.
 
+### kube-apiserver
+
+It's the main control component in Kubernetes. Any kubectl comand we execute, is authenticated and validated by the kube-apiserver, it retrieves the apropriate info from ETCD and then shows the info back to the user.
+
+It's not necesary to use the `kubectl` command, we can use the API directly with curl or some other tool.
+Example of sequence of events when creating a pod:
+1. kube-apiserver writes the info in ETCD but it does not assign the pod to any node.
+2. kube-scheduler is monitoring continously the apiserver, and realizes there's a pod without node. It selects one node, and communicates it back to the apiserver, who updates the info in the ETCD cluster.
+3. The apiserver then passes the info to the kubelet in the worker node.
+4. The kubelet deploys the container in the worker node.
+5. The kubelet informs the apiserver that the pod is up and running.
+6. The apiserver then updates the info in the ETCD node.
+
+The kube-apiserver is in the center of any change that has to be done in the system.
+
+Example of configuration:
+````
+[Service]
+ ExecStart=/usr/local/bin/kube-apiserver \\
+   --advertise-address=${INTERNAL_IP} \\
+   --allow-privileged=true \\
+   --apiserver-count=3 \\
+   --audit-log-maxage=30 \\
+   --audit-log-maxbackup=3 \\
+   --audit-log-maxsize=100 \\
+   --audit-log-path=/var/log/audit.log \\
+   --authorization-mode=Node,RBAC \\
+   --bind-address=0.0.0.0 \\
+   --client-ca-file=/var/lib/kubernetes/ca.pem \\
+   --enable-admission-plugins=Initializers,NamespaceLifecycle,NodeRestriction,LimitRanger,ServiceAccount,Defa ultStorageClass,ResourceQuota \\
+   --enable-swagger-ui=true \\ 
+   --etcd-cafile=/var/lib/kubernetes/ca.pem \\
+   --etcd-certfile=/var/lib/kubernetes/kubernetes.pem \\
+   --etcd-keyfile=/var/lib/kubernetes/kubernetes-key.pem \\ 
+   --etcd-servers=https://10.240.0.10:2379,https://10.240.0.11:2379,https://10.240.0.12:2379 \\ --event-ttl=1h \\ --experimental-encryption-provider-config=/var/lib/kubernetes/encryption-config.yaml \\
+   --kubelet-certificate-authority=/var/lib/kubernetes/ca.pem \\ 
+   --kubelet-client-certificate=/var/lib/kubernetes/kubernetes.pem \\
+````
+
+### kube-controller-manager
+
+Its responsibilities:
+1. Continously monitors various components within the system.
+2. Executes the appropriate actions, through the apiserver, to the system to the desired status.
+
+#### node controller
+
+It monitors the status of the nodes every 5 seconds (node monitor period).
+If some node does not send the keepalive, it's then set in a grace period of 40s (node monitor grace period).
+It is then provided with 5 mins to come back (POD eviction timeout), if it does not comeback in those 5 mins, the pods are reassigned to other node.
+
+#### replication controller
+
+It is responsible of monitoring the replica sets. It's responsible of monitoring the amount of pods in a replica set and keep them in the desired status.
 
 
+There are other controllers, all are grouped in a executable called kube-controller-manager.
+
+### kube scheduler
+
+It is responsible for deciding which pod goes in which node depending on certain criteria. It is NOT responsible of placing the pod in the node, that's kubelet work.
+
+The scheduler tries to find the best node for it, in 2 phases:
+1. Filter nodes that are NOT able to run the pod.
+2. Then it ranks the nodes to see what's the best node to run the pod.
+
+### kubelet
+
+It's the one responsible to register the node in the k8s cluster. It also creates pod. It monitors its node and reports the status to the kubeapi.
+
+### kube-proxy
+
+In a kubernetes system, every pod is able to contact any other pod. That is achieved by means of a POD network, to which all the pods connect to.
+There are many solutions to deploy such network.
+
+It's a process that runs in each node and its responsibility is to monitor for new services and set the appropriate rules/configurations for the pods in that node to be able to communicate to those services (with iptables rules for example).
+
+### PODs
+
+We assume the app is already build and is available in a docker hub and the k8s cluster is up and running.
+
+The containers we want to deploy are encapsulated in a kubernetes object called POD. A POD is a single instance of an application. It's the smallest object you can create in Kubernetes.
+
+Usually there's a 1 to 1 correspondance between containers and PODs. To escalate horizontally you deploy more pods, NOT containers inside some POD.
+A single POD can have multiple containers, but they will be of different type(helpers, etc.). They share the same network space, so they can communicate with each other as localhost. They can also easily share storage.
+
+They can be created using a YAML configuration file.
+Any k8s definition file (YAML) has the following top level (required) fields:
+* apiVersion: Version of the k8s api you are using to create the object. Example: v1
+* kind: Type of object we're trying to create. Example: Pod.
+* metadata: Data about the object in the form of a dictionary.
+  * It contains name, labels, etc
+* spec: Specification section. Additional information for the object. It is also a dict.
+  * For example: containers that is an array with pairs name, image
 
 ## Command reference
+
+### Get system nodes
+````
+kubectl get nodes
+NAME      STATUS     ROLES    AGE     VERSION
+master    Ready      master   20m      v1.11.3
+node01    Ready      <none>   20m      v1.11.3
+````
+
+### Run POD
+````
+kubectl run nginx --image nginx
+````
+
+### Get information about a pod
+````
+kubectl describe pod myapp-pod
+````
+
+### Get PODs
+````
+kubectl get pods
+````
 
 ### Get system PODs
 ````
 kubectl get pods -n kube-system
-NAMESPACE NAME
-kube-system coredns-78fcdf6894-prwvl kube-system coredns-78fcdf6894-vqd9w kube-         -master
-kube-system kube-apiserver-master kube-system kube-controller-manager-master kube-system kube-proxy-f6k26
-kube-system kube-proxy-hnzsw
-kube-system kube-scheduler-master kube-system weave-net-924k8
-kube-system weave-net-hzfcz
-READY STATUS RESTARTS AGE 1/1 Running 0 1h 1/1 Running 0 1h 1/1 Running 0 1h 1/1 Running 0 1h 1/1 Running 0 1h 1/1 Running 0 1h 1/1 Running 0 1h 1/1 Running 0 1h 2/2 Running 1 1h 2/2 Running 1 1h
+NAMESPACE NAME READY STATUS RESTARTS AGE
+kube-system coredns-78fcdf6894-prwvl 1/1 Running 0 1h
+kube-system coredns-78fcdf6894-vqd9w 1/1 Running 0 1h
+kube-system kube-apiserver-master 1/1 Running 0 1h
+kube-system kube-controller-manager-master 1/1 Running 0 1h
+kube-system kube-proxy-f6k26 1/1 Running 0 1h
+kube-system kube-proxy-hnzsw 1/1 Running 0 1h
+kube-system kube-scheduler-master 1/1 Running 0 1h
+kube-system weave-net-924k8 1/1 Running 0 1h
+kube-system weave-net-hzfcz 1/1 Running 0 1h
 ````
 ### Execute command on POD
 ````
 kubectl exec etcd-master –n kube-system etcdctl get / --prefix –keys-only
-/registry/apiregistration.k8s.io/apiservices/v1. /registry/apiregistration.k8s.io/apiservices/v1.apps /registry/apiregistration.k8s.io/apiservices/v1.authentication.k8s.io /registry/apiregistration.k8s.io/apiservices/v1.authorization.k8s.io /registry/apiregistration.k8s.io/apiservices/v1.autoscaling /registry/apiregistration.k8s.io/apiservices/v1.batch /registry/apiregistration.k8s.io/apiservices/v1.networking.k8s.io /registry/apiregistration.k8s.io/apiservices/v1.rbac.authorization.k8s.io /registry/apiregistration.k8s.io/apiservices/v1.storage.k8s.io /registry/apiregistration.k8s.io/apiservices/v1beta1.admissionregistration.k8s.io
+/registry/apiregistration.k8s.io/apiservices/v1. 
+/registry/apiregistration.k8s.io/apiservices/v1.apps 
+/registry/apiregistration.k8s.io/apiservices/v1.authentication.k8s.io 
+/registry/apiregistration.k8s.io/apiservices/v1.authorization.k8s.io 
+/registry/apiregistration.k8s.io/apiservices/v1.autoscaling 
+/registry/apiregistration.k8s.io/apiservices/v1.batch 
+/registry/apiregistration.k8s.io/apiservices/v1.networking.k8s.io
+/registry/apiregistration.k8s.io/apiservices/v1.rbac.authorization.k8s.io
+/registry/apiregistration.k8s.io/apiservices/v1.storage.k8s.io
+/registry/apiregistration.k8s.io/apiservices/v1beta1.admissionregistration.k8s.io
  
 ````
 
+### Create object in k8s
+````
+kubectl create -f pod-definition.yml
+````
 
