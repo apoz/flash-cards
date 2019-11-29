@@ -133,9 +133,40 @@ It monitors the status of the nodes every 5 seconds (node monitor period).
 If some node does not send the keepalive, it's then set in a grace period of 40s (node monitor grace period).
 It is then provided with 5 mins to come back (POD eviction timeout), if it does not comeback in those 5 mins, the pods are reassigned to other node.
 
-#### replication controller
+#### replication controller / replica set
 
 It is responsible of monitoring the replica sets. It's responsible of monitoring the amount of pods in a replica set and keep them in the desired status.
+It is also reponsible for load balancing and automatic scallability of the pods when demand increases/decreases.
+
+Replication controller is a technology that is being replaced by replica set.
+To create a replication controller, we have to create a yaml file with the mandatory elements:
+* apiVersion: v1
+* kind: ReplicationController
+* metadata:
+** name: Name of the RC
+** Tags:
+*** app:
+*** type:
+* spec:
+** template:  Template of the POD that will be managed by this replication controller. This section has to contain the metadata and spec sections of pod definition yaml.
+** replicas: number of replicas that have to be running.
+
+To create a replica set, we have to create a yaml file with the mandatory elements:
+* apiVersion: apps/v1
+* kind: ReplicaSet
+* metadata:
+** name: Name of the RC
+** Tags:
+*** app:
+*** type:
+* spec:
+** template:  Template of the POD that will be managed by this replica set. This section has to contain the metadata and spec sections of pod definition yaml.
+** replicas: number of replicas that have to be running.
+** selector: Replica set can manage pods that were not created by the replica set definition. 
+*** matchLabels: List of labels of the pods that will be managed by the replica set.
+
+
+
 
 
 There are other controllers, all are grouped in a executable called kube-controller-manager.
@@ -170,11 +201,11 @@ A single POD can have multiple containers, but they will be of different type(he
 
 They can be created using a YAML configuration file.
 Any k8s definition file (YAML) has the following top level (required) fields:
-* apiVersion: Version of the k8s api you are using to create the object. Example: v1
-* kind: Type of object we're trying to create. Example: Pod.
-* metadata: Data about the object in the form of a dictionary.
+* *apiVersion*: Version of the k8s api you are using to create the object. Example: v1
+* *kind*: Type of object we're trying to create. Example: Pod.
+* *metadata*: Data about the object in the form of a dictionary.
   * It contains name, labels, etc
-* spec: Specification section. Additional information for the object. It is also a dict.
+* *spec*: Specification section. Additional information for the object. It is also a dict.
   * For example: containers that is an array with pairs name, image
 
 ## Command reference
@@ -237,3 +268,26 @@ kubectl exec etcd-master –n kube-system etcdctl get / --prefix –keys-only
 kubectl create -f pod-definition.yml
 ````
 
+### Get replication controllers
+````
+kubectl get replicationcontroller
+````
+
+### Get replica set
+````
+kubectl get replicaset
+````
+
+### Update object
+````
+kubectl update -f replica-set-definition.yml
+````
+
+### Scale replica set
+````
+kubectl scale --replicas=6 -f replica-set-definition.yml
+
+or
+
+kubectl scale --replicas=6 -f object_type  object_name
+````
