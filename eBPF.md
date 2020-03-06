@@ -63,3 +63,23 @@ BPF maps are key/value stores that reside in the kernel. They can be accessed by
 
 XDP (Express Data Path)
 =======================
+
+
+# BCC, BPFTRACE and IOVISOR
+
+Some front-ends have been developed that provide higher level languages to create bpf programs.
+
+## BCC (BPF Compiler Collection)
+
+BCC was the first higher-level tracing framework developed for BPF. It provides a C programming environment for writing kernel BPF code and other languages for the user-level interface: python, lua and c++. It's alse the origin of libbcc and current libbpf libraries.
+
+The BCC repo contains >70 BPF tools for performance analysis and troubleshooting.
+BCC is better siuted for complex scripts and daemons making use of other libraries.
+
+## Bpftrace
+
+It's a newer front-end that provides a special-purpose, high-level language to develop bpf tools. Bpftrace is built on top of libbcc and libbpf libraries.
+Ideal for powerful one-liners and custom short scripts.
+
+## IO Visor
+Both BCC and bpftrace do not live in kernel codebase but in a Linux Foundation project called [IO Visor](https://github.com/iovisor).
