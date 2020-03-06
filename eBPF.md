@@ -83,3 +83,55 @@ Ideal for powerful one-liners and custom short scripts.
 
 ## IO Visor
 Both BCC and bpftrace do not live in kernel codebase but in a Linux Foundation project called [IO Visor](https://github.com/iovisor).
+
+# BCC Tools
+## execsnoop
+This tools prints a one line summary of a process when it starts (it works tracing execve system call).
+Useful to detect short lived processes that may escape top...
+* With *-t* option it prints a timestamp in the line.
+
+## biolatency
+Summarizes block device I/O times as a latency histogram.
+* When Control-C is typed, the summary is written.
+* option *-m*.
+
+## opensnoop
+traces file open functions in the kernel
+* *-h*: help, many options
+
+# Dynamic instrumentation: Kprobes and Uprobes
+
+# Viewing BPF Instructions: bpftool
+
+Tool to manage bpf programs,etc.
+It operates over objects: “{ prog | map | cgroup | perf | net | feature | btf }”
+
+perf and prog objects can be used to find and print tracing programs
+*bpftool perf* subcommand shows BPF programms attached via perf_event_open()
+It's the ability to insert instrumentation points to live software (in production). It's used by the tools to instrument the start and end of kernel or user functions.
+*bpftool prog show* subcommand list all bpf programs (not only the perf_event_open()-based)
+
+# Static instrumentation: tracepoints and usdt
+
+USDT User statically defined tracing
+
+# A first look at BPFTrace
+There's a tracepoint for open kernel function called syscalls:sys_enter_open.
+
+“bpftrace -e 'tracepoint:syscalls:sys_enter_open { printf("%s %s\n", comm,
+    str(args->filename)); }'
+
+You can list all the tracepoints of one type using a wildcard:
+“ bpftrace -l 'tracepoint:syscalls:sys_enter_open*'
+tracepoint:syscalls:sys_enter_open_by_handle_at
+tracepoint:syscalls:sys_enter_open
+tracepoint:syscalls:sys_enter_openat”
+
+“bpftrace -e 'tracepoint:syscalls:sys_enter_open* { @[probe] = count(); }'
+Attaching 3 probes...
+^C
+
+@[tracepoint:syscalls:sys_enter_open]: 5
+@[tracepoint:syscalls:sys_enter_openat]: 308”
+
+There's a bpftrace tool called *opensnoop.bt* that does this.
