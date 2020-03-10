@@ -101,7 +101,8 @@ traces file open functions in the kernel
 
 # Dynamic instrumentation: Kprobes and Uprobes
 
-# Viewing BPF Instructions: bpftool
+# Viewing BPF Instructions: 
+## bpftool
 
 Tool to manage bpf programs,etc.
 It operates over objects: “{ prog | map | cgroup | perf | net | feature | btf }”
@@ -110,6 +111,13 @@ perf and prog objects can be used to find and print tracing programs
 *bpftool perf* subcommand shows BPF programms attached via perf_event_open()
 It's the ability to insert instrumentation points to live software (in production). It's used by the tools to instrument the start and end of kernel or user functions.
 *bpftool prog show* subcommand list all bpf programs (not only the perf_event_open()-based)
+*bpftool prog dump xlated* prints the bpf instructions of one program translated into assembly.
+*bpftool prog dump jited* shows the machine code for the processor that is executed.
+*bpftool btf*: dumps BTF IDs (BTF allows bpftool to include source code lines of a bpf program).
+
+## bpftrace
+
+You can check the bpf instructions with *bpftrace -v*
 
 # Static instrumentation: tracepoints and usdt
 
@@ -135,3 +143,13 @@ Attaching 3 probes...
 @[tracepoint:syscalls:sys_enter_openat]: 308”
 
 There's a bpftrace tool called *opensnoop.bt* that does this.
+
+
+# BPF sysfs interface
+
+Linux 4.4 introduced commands to expose BPF programs and maps via a virtual filesystem, mounted on /sys/fs/bpf.
+This allows the creation of BPF programs that are persistent (~daemons) that continue running after the process that loaded them has exited.
+
+# BTF (BPF TYPE FORMAT)
+It's a metadata format that encodes debugging information, used to describe BPF programs, BPF maps and much more.
+Still in development(2020).
