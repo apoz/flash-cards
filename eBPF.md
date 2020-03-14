@@ -153,3 +153,34 @@ This allows the creation of BPF programs that are persistent (~daemons) that con
 # BTF (BPF TYPE FORMAT)
 It's a metadata format that encodes debugging information, used to describe BPF programs, BPF maps and much more.
 Still in development(2020).
+
+
+# Performance Analysis
+
+## Linux 60 second analysis
+
+1. uptime
+2. dmesg | tail
+3. vmstat 1
+4. mpstat -P ALL 1
+5. pidstat 1
+6. iostat -xz 1
+7. free -m
+8. sar -n DEV 1
+9. sar -n TCP,ETCP 1
+10. top
+
+### 1. Uptime
+Quick way to view the load averages, which indicate the number of tasks (processes) waiting to run. In Linux these numbers include processes wanting to run on the CPUs as well as processes blocked in uninterruptible I/O.
+The three numbers are exponentially damped moving sum averages within a 1-min, 5-minute and 15-minute constant. It gives us some idea of how load is changing over time.
+
+### 2. dmesg | tail
+This views the last 10 system messages.
+
+### 3. vmstat 1
+Virtual memory statistics tool. Whith 1 param prints 1 second summaries (first line is summary since boot).
+Columns to check:
+* **r**: Number of processes running on a cpu and waiting for a turn. r value greater than CPU count means saturation.
+* **free**: Free memory in KB.
+* **si, so**: Swap-ins and swap-outs. If these are non-zero you're out of memory.
+* **us,sy, id, wa, st**: These are breackdowns on CPU time, on avg across all cpus.
