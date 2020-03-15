@@ -184,3 +184,34 @@ Columns to check:
 * **free**: Free memory in KB.
 * **si, so**: Swap-ins and swap-outs. If these are non-zero you're out of memory.
 * **us,sy, id, wa, st**: These are breackdowns on CPU time, on avg across all cpus.
+
+### 4. mpstat -P ALL 1
+Prints per CPU time broken down into states.
+Look out for high %iowait time (which can be explored with disk I/O tools), and high %sys time (which can be explored with syscall and kernel trancing, and CPU profiling).
+
+### 5. pidstat
+Pidstat shows CPU usage per process.
+
+### 6. iostat -xz 1
+Shows storage device I/O metrics.
+Columns to check:
+* **r/s,w/s,rkB/s,wkB/s**: delivered reads, writes, read Kbytes and write Kbytes per second to the device. Use these for workload characterization.
+* **await**: The average time for the I/O in miliseconds.
+* **avgqu-sz**: The average number of requests issued to the device. Value >1 can be evidence of saturation of device.
+* **%util**: Device utilization. This is really a busy percent, showing the time each second the device was doing work.
+
+### 7. free -m
+This shows available memory in Mbytes.
+
+### 8. sar -n DEV 1
+Network device metrics, interface throughput.
+
+### 9. sar -n TCP,ETCP 1
+TCP metrics and TCP errors.
+Columns to check:
+* **active/s**: Number of locally-initiated TCP connections per second.
+* **passive**: Number of remotelly-initiated TCP connections per second.
+* **retrans/s**: Number of TCP retransmits per second.
+
+### 10. top
+Double check the things with top.
