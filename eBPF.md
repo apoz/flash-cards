@@ -221,7 +221,7 @@ Double check the things with top.
 
 ## 1. execsnoop
 
-'''
+```
 root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/execsnoop
 PCOMM            PID    PPID   RET ARGS
 sshd             28855  25666    0 /usr/sbin/sshd -D -R
@@ -232,13 +232,13 @@ run-parts        28858  28857    0 /bin/run-parts --lsbsysinit /etc/update-motd.
 uname            28860  28859    0 /bin/uname -o
 uname            28861  28859    0 /bin/uname -r
 uname            28862  28859    0 /bin/uname -m
-'''
+```
 
-execsnoop(8) shows new process execution, by printing one line of output for every execve(2) syscall. Check for short-lived processes. These can consume CPU resources, but may not show up in most monitoring tools that periodically take snapshots of which processes are running.
+execsnoop shows new process execution, by printing one line of output for every execve(2) syscall. Check for short-lived processes. These can consume CPU resources, but may not show up in most monitoring tools that periodically take snapshots of which processes are running.
 
 ## 2. opensnoop
 
-'''
+```
 root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/opensnoop
 PID    COMM               FD ERR PATH
 28928  vi                  3   0 /etc/ld.so.cache
@@ -254,24 +254,60 @@ PID    COMM               FD ERR PATH
 28928  vi                  3   0 /usr/lib/x86_64-linux-gnu/libgpm.so.2
 28928  vi                  3   0 /lib/x86_64-linux-gnu/libdl.so.2
 28928  vi                  3   0 /usr/lib/x86_64-linux-gnu/libpython3.6m.so.1.0
-'''
+```
 
-opensnoop prints one line of output for each open(2) syscall (and its variants), including details of the path that was opened, and whether it was successful (the “ERR” error column). Opened files can tell you a lot about how applications work: identifying their data files, config files, and log files. Sometimes applications can misbehave, and perform poorly, when they are constantly attempting to read files that do not exist.
+opensnoop prints one line of output for each open syscall (and its variants), including details of the path that was opened, and whether it was successful (the “ERR” error column). Opened files can tell you a lot about how applications work: identifying their data files, config files, and log files. Sometimes applications can misbehave, and perform poorly, when they are constantly attempting to read files that do not exist.
 
 ## 3. ext4slower (or btrfs*, xfs*, zfs*)
 
-'''
+```
 root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/ext4slower
 Tracing ext4 operations slower than 10 ms
 TIME     COMM           PID    T BYTES   OFF_KB   LAT(ms) FILENAME
 11:36:01 vi             29007  S 0       0          31.22 test.txt
 11:36:15 vi             29008  S 0       0          15.63 test2.txt
-'''
-
+```
+ext4slower traces common operations from the ext4 file system (reads, writes, opens, and syncs), and prints those that exceed a time threshold. This can identify or exonerate one type of performance issue: an application waiting on slow individual disk I/O via the file system.
 
 ## 4. biolatency
+
+```
+root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/biolatency -m
+Tracing block device I/O... Hit Ctrl-C to end.
+^C
+     msecs               : count     distribution
+         0 -> 1          : 8        |****************************************|
+         2 -> 3          : 3        |***************                         |
+         4 -> 7          : 1        |*****                                   |
+```
+
+Biolatency traces disk I/O latency, the time from device issue to completion, and shows this as a histogram. This better explains disk I/O performance than the averages shown by iostat. 
+Multiple modes can be examined: modes are values that are more frequent than others in a distribution.
+
 ## 5. biosnoop
+
+````
+root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/biosnoop
+TIME(s)     COMM           PID    DISK    T SECTOR     BYTES  LAT(ms)
+0.000000    ?              0              R 0          8         4.04
+2.023791    ?              0              R 0          8        11.83
+3.740882    jbd2/sda1-8    184    sda     W 2694656    12288     6.72
+3.746598    jbd2/sda1-8    184    sda     W 2694680    4096      0.37
+4.028306    ?              0              R 0          8         0.36
+6.044260    ?              0              R 0          8         0.31
+8.060196    ?              0              R 0          8         0.30
+9.313847    jbd2/sda1-8    184    sda     W 2694688    36864     5.81
+9.316481    jbd2/sda1-8    184    sda     W 2694760    4096      0.48
+````
+
+biosnoop prints a line of output for each disk I/O, with details including latency. This allows you to examine disk I/O in more detail, and look for time-ordered patterns (e.g., reads queueing behind writes).
+
 ## 6. cachestat
+
+
+```
+```
+
 ## 7. tcpconnect
 ## 8. tcpaccept
 ## 9. tcpretrans
