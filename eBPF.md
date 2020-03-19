@@ -215,3 +215,65 @@ Columns to check:
 
 ### 10. top
 Double check the things with top.
+
+
+# BCC tool checklist
+
+## 1. execsnoop
+
+'''
+root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/execsnoop
+PCOMM            PID    PPID   RET ARGS
+sshd             28855  25666    0 /usr/sbin/sshd -D -R
+sh               28857  28855    0
+env              28858  28857    0 /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin run-parts --lsbsysinit /etc/update-motd.d
+run-parts        28858  28857    0 /bin/run-parts --lsbsysinit /etc/update-motd.d
+00-header        28859  28858    0 /etc/update-motd.d/00-header
+uname            28860  28859    0 /bin/uname -o
+uname            28861  28859    0 /bin/uname -r
+uname            28862  28859    0 /bin/uname -m
+'''
+
+execsnoop(8) shows new process execution, by printing one line of output for every execve(2) syscall. Check for short-lived processes. These can consume CPU resources, but may not show up in most monitoring tools that periodically take snapshots of which processes are running.
+
+## 2. opensnoop
+
+'''
+root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/opensnoop
+PID    COMM               FD ERR PATH
+28928  vi                  3   0 /etc/ld.so.cache
+28927  opensnoop          -1   2 /usr/lib/python2.7/encodings/ascii.x86_64-linux-gnu.so
+28927  opensnoop          -1   2 /usr/lib/python2.7/encodings/ascii.so
+28927  opensnoop          -1   2 /usr/lib/python2.7/encodings/asciimodule.so
+28927  opensnoop          11   0 /usr/lib/python2.7/encodings/ascii.py
+28927  opensnoop          12   0 /usr/lib/python2.7/encodings/ascii.pyc
+28928  vi                  3   0 /lib/x86_64-linux-gnu/libm.so.6
+28928  vi                  3   0 /lib/x86_64-linux-gnu/libtinfo.so.5
+28928  vi                  3   0 /lib/x86_64-linux-gnu/libselinux.so.1
+28928  vi                  3   0 /lib/x86_64-linux-gnu/libacl.so.1
+28928  vi                  3   0 /usr/lib/x86_64-linux-gnu/libgpm.so.2
+28928  vi                  3   0 /lib/x86_64-linux-gnu/libdl.so.2
+28928  vi                  3   0 /usr/lib/x86_64-linux-gnu/libpython3.6m.so.1.0
+'''
+
+opensnoop prints one line of output for each open(2) syscall (and its variants), including details of the path that was opened, and whether it was successful (the “ERR” error column). Opened files can tell you a lot about how applications work: identifying their data files, config files, and log files. Sometimes applications can misbehave, and perform poorly, when they are constantly attempting to read files that do not exist.
+
+## 3. ext4slower (or btrfs*, xfs*, zfs*)
+
+'''
+root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/ext4slower
+Tracing ext4 operations slower than 10 ms
+TIME     COMM           PID    T BYTES   OFF_KB   LAT(ms) FILENAME
+11:36:01 vi             29007  S 0       0          31.22 test.txt
+11:36:15 vi             29008  S 0       0          15.63 test2.txt
+'''
+
+
+## 4. biolatency
+## 5. biosnoop
+## 6. cachestat
+## 7. tcpconnect
+## 8. tcpaccept
+## 9. tcpretrans
+## 10. runqlat
+## 11. profile
