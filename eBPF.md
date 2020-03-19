@@ -304,11 +304,35 @@ biosnoop prints a line of output for each disk I/O, with details including laten
 
 ## 6. cachestat
 
+```
+root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/cachestat
+    HITS   MISSES  DIRTIES HITRATIO   BUFFERS_MB  CACHED_MB
+       0        0        0    0.00%           95       1063
+       0        0        0    0.00%           95       1063
+       0        0        0    0.00%           95       1063
+     349        0        1  100.00%           95       1063
+       0        0        0    0.00%           95       1063
+       0        0       10    0.00%           95       1063
+    1693        1       11   99.94%           95       1063
+```
 
-```
-```
+cachestat prints a one-line summary every second (or every custom interval) showing statistics from the file system cache. Use this to identify a low cache hit ratio, and a high rate of misses. This may gives you a lead for performance tuning.
 
 ## 7. tcpconnect
+
+```
+root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/tcpconnect
+PID    COMM         IP SADDR            DADDR            DPORT
+29112  wget         4  192.168.83.93    172.217.168.174  80
+29112  wget         4  192.168.83.93    172.217.17.4     80
+29113  wget         4  192.168.83.93    172.217.168.174  80
+29113  wget         4  192.168.83.93    172.217.17.4     80
+29114  wget         4  192.168.83.93    172.217.168.174  80
+29114  wget         4  192.168.83.93    172.217.17.4     80
+```
+
+tcpconnect prints one line of output for every active TCP connection (e.g., via connect()), with details including source and destination addresses. Look for unexpected connections that may point to inefficiencies in application configuration, or an intruder.
+
 ## 8. tcpaccept
 ## 9. tcpretrans
 ## 10. runqlat
