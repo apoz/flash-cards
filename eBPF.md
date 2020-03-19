@@ -219,6 +219,16 @@ Double check the things with top.
 
 # BCC tool checklist
 
+## Installation
+
+````
+root@ubuntu:/home/sysadmin# cat /etc/apt/sources.list.d/iovisor.list
+deb [trusted=yes] https://repo.iovisor.org/apt/bionic bionic-nightly main
+sudo apt-get update
+sudo apt-get install binutils bcc bcc-tools libbcc-examples python-bcc
+cd /usr/share/bcc/tools/
+````
+
 ## 1. execsnoop
 
 ```
@@ -334,6 +344,79 @@ PID    COMM         IP SADDR            DADDR            DPORT
 tcpconnect prints one line of output for every active TCP connection (e.g., via connect()), with details including source and destination addresses. Look for unexpected connections that may point to inefficiencies in application configuration, or an intruder.
 
 ## 8. tcpaccept
+
+```
+root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/tcpaccept
+PID     COMM         IP RADDR            RPORT LADDR            LPORT
+25666   sshd         4  10.95.43.140     57462 192.168.83.93    22
+25666   sshd         4  10.95.43.140     57465 192.168.83.93    22
+```
+tcpaccept is a companion tool to tcpconnect. It prints one line of output for every passive TCP connection (eg, via accept()), with details including source and destination addresses.
+
 ## 9. tcpretrans
+
+```
+/usr/share/bcc/tools/tcpretrans
+Tracing retransmits ... Hit Ctrl-C to end
+TIME     PID    IP LADDR:LPORT          T> RADDR:RPORT          STATE
+```
+
+tcprerans prints one line of output for every TCP retransmit packet, with details including source and destination addresses, and the kernel state of the TCP connection. TCP retransmissions cause latency and throughput issues. For retransmissions where the TCP session state is ESTABLISHED, look for problems with external networks. For the SYN_SENT state, this may point to target kernel CPU saturation and kernel packet drops as well.
+
 ## 10. runqlat
+
+````
+root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/runqlat
+Tracing run queue latency... Hit Ctrl-C to end.
+
+     usecs               : count     distribution
+         0 -> 1          : 110      |****                                    |
+         2 -> 3          : 459      |********************                    |
+         4 -> 7          : 906      |****************************************|
+         8 -> 15         : 478      |*********************                   |
+        16 -> 31         : 667      |*****************************           |
+        32 -> 63         : 267      |***********                             |^C
+        64 -> 127        : 101      |****                                    |
+       128 -> 255        : 30       |*                                       |
+       256 -> 511        : 17       |                                        |
+       512 -> 1023       : 5        |                                        |
+      1024 -> 2047       : 4        |                                        |
+      2048 -> 4095       : 4        |                                        |
+      4096 -> 8191       : 2        |                                        |
+````
+
+runqlat times how long threads were waiting for their turn on CPU, and prints this time as a histogram. Longer-than-expected waits for CPU access, which threads can suffer due to CPU saturation, misconfigurations, or scheduler issues, can be identified using this tool.
+
 ## 11. profile
+
+```
+root@ubuntu:/home/sysadmin# /usr/share/bcc/tools/profile
+Sampling at 49 Hertz of all threads by user + kernel stack... Hit Ctrl-C to end.
+^C
+    finish_task_switch
+    finish_task_switch
+    __schedule
+    schedule
+    schedule_hrtimeout_range_clock
+    schedule_hrtimeout_range
+    ep_poll
+    sys_epoll_pwait
+    do_syscall_64
+    entry_SYSCALL_64_after_hwframe
+WARNING: Couldn't find .text section in /usr/sbin/odhcpd
+WARNING: BCC can't handle sym look ups for /usr/sbin/odhcpdWARNING: Couldn't find .text section in /lib/libgcc_s.so.1
+WARNING: BCC can't handle sym look ups for /lib/libgcc_s.so.1WARNING: Couldn't find .text section in /lib/libubus.so
+WARNING: BCC can't handle sym look ups for /lib/libubus.soWARNING: Couldn't find .text section in /usr/lib/libnl-tiny.so
+WARNING: BCC can't handle sym look ups for /usr/lib/libnl-tiny.soWARNING: Couldn't find .text section in /lib/libuci.so
+WARNING: BCC can't handle sym look ups for /lib/libuci.soWARNING: Couldn't find .text section in /lib/libubox.so
+WARNING: BCC can't handle sym look ups for /lib/libubox.soWARNING: Couldn't find .text section in /lib/libc.so
+WARNING: BCC can't handle sym look ups for /lib/libc.so    [unknown]
+    -                odhcpd (10914)
+        1
+
+    [unknown]
+    -                vim (29406)
+        1
+
+```
+profile is a CPU profiler, a tool to understand which code paths are consuming CPU resources. It takes samples of stack traces at timed intervals, and prints a summary of unique stack traces and a count of their occurrence.
