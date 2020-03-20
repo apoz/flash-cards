@@ -428,3 +428,17 @@ profile is a CPU profiler, a tool to understand which code paths are consuming C
 # BCC
 The BPF Compiler Collection (BCC or sometimes called bcc) is an opensource project containing a compiler framework and libraries for building BPF software. It's the main front-end for BPF. Over 70 ready-to-run BPF perf. analysis and troubleshooting tools.
 
+The URL of the repo is (https://github.com/iovisor/bcc)[https://github.com/iovisor/bcc]
+The tools are installed either in /usr/share/bcc/tools, /sbin or /snap/bin.
+
+The recommended kernel is 4.9 or higher.
+
+
+## Ubuntu installation
+
+´´´
+sudo apt-get install bpfcc-tools linux-headers-$(uname -r)
+´´´
+
+This will place the tools in /sbin with the -bpfcc suffixes.
+
