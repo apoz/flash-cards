@@ -440,5 +440,5 @@ The recommended kernel is 4.9 or higher.
 sudo apt-get install bpfcc-tools linux-headers-$(uname -r)
 ´´´
 
-This will place the tools in /sbin with the -bpfcc suffixes.
+This will place the tools in /usr/sbin with the -bpfcc suffixes.
 
