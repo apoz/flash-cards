@@ -420,3 +420,11 @@ WARNING: BCC can't handle sym look ups for /lib/libc.so    [unknown]
 
 ```
 profile is a CPU profiler, a tool to understand which code paths are consuming CPU resources. It takes samples of stack traces at timed intervals, and prints a summary of unique stack traces and a count of their occurrence.
+
+
+
+
+
+# BCC
+The BPF Compiler Collection (BCC or sometimes called bcc) is an opensource project containing a compiler framework and libraries for building BPF software. It's the main front-end for BPF. Over 70 ready-to-run BPF perf. analysis and troubleshooting tools.
+
