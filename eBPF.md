@@ -437,8 +437,123 @@ The recommended kernel is 4.9 or higher.
 ## Ubuntu installation
 
 ´´´
-sudo apt-get install bpfcc-tools linux-headers-$(uname -r)
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4052245BD4284CDD
+echo "deb https://repo.iovisor.org/apt/$(lsb_release -cs) $(lsb_release -cs) main"|\
+  sudo tee /etc/apt/sources.list.d/iovisor.list
+sudo apt-get update
+sudo apt-get install bcc-tools libbcc-examples linux-headers-$(uname -r)
 ´´´
 
-This will place the tools in /usr/sbin with the -bpfcc suffixes.
+This will place the tools in /usr/share/bcc/tools.
+
+
+## Single-purpose tools
+
+Tools with single purpose (unix philosophy).
+
+## Multi-purpose tools
+
+Can be used for different tasks.
+
+### funccount
+
+Counts kernel function calls:
+
+```
+root@ubuntu:/usr/share/bcc/tools# ./funccount 'vfs_*'
+Tracing 55 functions for "vfs_*"... Hit Ctrl-C to end.
+^C
+FUNC                                    COUNT
+vfs_unlink                                  3
+vfs_statx                                  19
+vfs_statx_fd                               26
+vfs_getattr_nosec                          37
+vfs_getattr                                37
+vfs_open                                   77
+vfs_write                                  84
+vfs_read                                   90
+Detaching...
+
+```
+
+```
+root@ubuntu:/usr/share/bcc/tools# ./funccount -i 1 'c:str*'
+Tracing 59 functions for "c:str*"... Hit Ctrl-C to end.
+
+FUNC                                    COUNT
+strtoll                                    46
+strdup                                     86
+
+FUNC                                    COUNT
+strdup                                      4
+strndup                                     4
+
+```
+
+### stackcount
+
+It counts the stack traces.
+
+
+```
+root@ubuntu:/usr/share/bcc/tools# ./stackcount ktime_get
+Tracing 1 functions for "ktime_get"... Hit Ctrl-C to end.
+^C
+  ktime_get
+  __hrtimer_run_queues
+  hrtimer_interrupt
+  smp_apic_timer_interrupt
+  apic_timer_interrupt
+  [unknown]
+  [unknown]
+    1
+
+  ktime_get
+  tick_program_event
+  hrtimer_interrupt
+  smp_apic_timer_interrupt
+  apic_timer_interrupt
+  iowrite16
+  vp_notify
+  virtqueue_kick
+  start_xmit
+  dev_hard_start_xmit
+  sch_direct_xmit
+  __dev_queue_xmit
+  dev_queue_xmit
+  ip_finish_output2
+  ip_finish_output
+  ip_output
+  ip_local_out
+  ip_queue_xmit
+  tcp_transmit_skb
+  tcp_write_xmit
+  __tcp_push_pending_frames
+  tcp_push
+  tcp_sendmsg_locked
+  tcp_sendmsg
+  inet_sendmsg
+  sock_sendmsg
+  sock_write_iter
+  new_sync_write
+  __vfs_write
+  vfs_write
+  sys_write
+  do_syscall_64
+  entry_SYSCALL_64_after_hwframe
+  [unknown]
+    1
+    
+```
+
+With the output of stackcount you can buuld flamegraphs.
+
+
+```
+./stackcount -f -P -D 10 ktime_get > /tmp/out.stackcount01.txt
+git clone htpp://github.com/brendangregg/FlameGraph
+cd FlameGraph
+./flamegraph.pl --hash --bgcolors=grey < /tmp/out.stackcount01.txt
+
+```
 
