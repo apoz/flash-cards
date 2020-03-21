@@ -603,8 +603,69 @@ PID     TID     COMM            FUNC             -
 14454   14454   sudo            pam_start        sudo: sysadmin
 14455   14455   su              pam_start        su: root
 
+# A more complex example
+
+# trace -tKU 'r::sock_alloc "open %llx", retval' '__sock_release "close %llx", arg1'
+TIME     PID     TID     COMM            FUNC             -
+1.093199 4182    7101    nf.dependency.M sock_alloc       open ffff9c76526dac00
+        kretprobe_trampoline+0x0 [kernel]
+        sys_socket+0x55 [kernel]
+        do_syscall_64+0x73 [kernel]
+        entry_SYSCALL_64_after_hwframe+0x3d [kernel]
+        __socket+0x7 [libc-2.27.so]
+        Ljava/net/PlainSocketImpl;::socketCreate+0xc7 [perf-4182.map]
+        Ljava/net/Socket;::setSoTimeout+0x2dc [perf-4182.map]
+        Lorg/apache/http/impl/conn/DefaultClientConnectionOperator;::openConnectio...
+        Lorg/apache/http/impl/client/DefaultRequestDirector;::tryConnect+0x60c [pe...
+        Lorg/apache/http/impl/client/DefaultRequestDirector;::execute+0x1674 [perf...
+[...]
+
+[...]
+
+6.010530 4182    6797    nf.dependency.M __sock_release   close ffff9c76526dac00
+        __sock_release+0x1 [kernel]
+        __fput+0xea [kernel]
+        ____fput+0xe [kernel]
+        task_work_run+0x9d [kernel]
+        exit_to_usermode_loop+0xc0 [kernel]
+        do_syscall_64+0x121 [kernel]
+        entry_SYSCALL_64_after_hwframe+0x3d [kernel]
+        dup2+0x7 [libc-2.27.so]
+        Ljava/net/PlainSocketImpl;::socketClose0+0xc7 [perf-4182.map]
+        Ljava/net/Socket;::close+0x308 [perf-4182.map]
+        Lorg/apache/http/impl/conn/DefaultClientConnection;::close+0x2d4 [perf-418...
+
 ```
 
+### argdist
 
+argdist is a multi-tool which summarizes arguments. Here is another real world example from Netflix: a Hadoop server was suffering a TCP performance issue, and we had tracked it down to zero-sized window advertisements. I used an argdist one-liner to summarize the window size in production.
 
+´´´
+argdist -H 'r::__tcp_select_window():int:$retval
 
+         0 -> 1          : 6100     |****************************************|
+         2 -> 3          : 0        |                                        |
+         4 -> 7          : 0        |                                        |
+         8 -> 15         : 0        |                                        |
+        16 -> 31         : 0        |                                        |
+        32 -> 63         : 0        |                                        |
+        64 -> 127        : 0        |                                        |
+       128 -> 255        : 0        |                                        |
+       256 -> 511        : 0        |                                        |
+       512 -> 1023       : 0        |                                        |
+      1024 -> 2047       : 0        |                                        |
+      2048 -> 4095       : 0        |                                        |
+      4096 -> 8191       : 0        |                                        |
+      8192 -> 16383      : 24       |                                        |
+     16384 -> 32767      : 3535     |***********************                 |
+     32768 -> 65535      : 1752     |***********                             |
+     65536 -> 131071     : 2774     |******************                      |
+
+´´´
+
+Oneliners
+```
+argdist -H 'r::vfs_read()'
+
+```
