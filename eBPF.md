@@ -557,3 +557,54 @@ cd FlameGraph
 
 ```
 
+### trace
+
+trace is a BCC multi-tool for performance events tracing from different sources.
+
+```
+root@ubuntu:/usr/share/bcc/tools# ./trace 'do_sys_open "%s", arg2'
+PID     TID     COMM            FUNC             -
+14378   14378   ls              do_sys_open      /etc/ld.so.cache
+14378   14378   ls              do_sys_open      /lib/x86_64-linux-gnu/libselinux.so.1
+14378   14378   ls              do_sys_open      /lib/x86_64-linux-gnu/libc.so.6
+14378   14378   ls              do_sys_open      /lib/x86_64-linux-gnu/libpcre.so.3
+14378   14378   ls              do_sys_open      /lib/x86_64-linux-gnu/libdl.so.2
+14378   14378   ls              do_sys_open      /lib/x86_64-linux-gnu/libpthread.so.0
+14378   14378   ls              do_sys_open      /proc/filesystems
+```
+
+The syntax for the trace command is:
+
+```
+trace [options] probe [probe...]
+```
+
+The syntax for probe is:
+
+```
+eventname(signature) (boolean filter) "format string", arguments
+```
+
+Oneliners:
+
+```
+./trace 'r::do_sys_open "return: %s", retval'
+
+./trace -U 'do_nanosleep "mode: %d", arg2'
+PID     TID     COMM            FUNC             -
+435     435     cron            do_nanosleep     mode: 1
+        __nanosleep+0x14 [libc-2.27.so]
+
+./trace 'pam:pam_start "%s: %s", arg1, arg2'
+PID     TID     COMM            FUNC             -
+14391   14391   sudo            pam_start        sudo: root
+14392   14392   su              pam_start        su: root
+14404   14404   sshd            pam_start        sshd: sysadmin
+14454   14454   sudo            pam_start        sudo: sysadmin
+14455   14455   su              pam_start        su: root
+
+```
+
+
+
+
