@@ -669,3 +669,27 @@ Oneliners
 argdist -H 'r::vfs_read()'
 
 ```
+
+# bpftrace
+
+bpftrace is an opensource tracer built on BPF and BCC. Like BCC, it's shipped with many performance tools and supporting documentation. However it also provides a high-level programming language that allows you to create powerful oneliners and short tools.
+
+## bpftrace one-liners
+
+Selection of oneliners:
+
+```
+# Show who is executing what:
+
+bpftrace -e 'tracepoint:syscalls:sys_enter_execve { printf("%s -> %s\n", comm,str(args->filename)); }'
+
+
+# New processes with arguments:
+
+bpftrace -e 'tracepoint:syscalls:sys_enter_execve { join(args->argv); }'
+
+# Syscall count by program:
+
+bpftrace -e 'tracepoint:raw_syscalls:sys_enter { @[comm] = count(); }'
+
+```
