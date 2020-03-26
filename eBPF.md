@@ -693,3 +693,6 @@ bpftrace -e 'tracepoint:syscalls:sys_enter_execve { join(args->argv); }'
 bpftrace -e 'tracepoint:raw_syscalls:sys_enter { @[comm] = count(); }'
 
 ```
+
+
+# CPU
