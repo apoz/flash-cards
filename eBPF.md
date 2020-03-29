@@ -696,3 +696,28 @@ bpftrace -e 'tracepoint:raw_syscalls:sys_enter { @[comm] = count(); }'
 
 
 # CPU
+
+## Traditional tools
+
+### Kernel statistics based
+
+#### uptime
+
+#### top
+
+#### mpstat
+
+### Hardware statistics
+
+#### perf
+#### tlbstat
+
+### CPU flame graphs
+
+Steps to get a CPU flamegraph using perf to sample stacks at 49 hertz for 30 seconds:
+```
+git clone https://github.com/brendangregg/FlameGraph
+cd FlameGraph
+perf record -F 49 -ag -- sleep 30
+perf script --header | ./stackcollapse-perf.pl | ./flamegraph.pl > flame1.svg
+```
