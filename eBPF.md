@@ -58,8 +58,105 @@ Ejemplos de tipos de programas:
 
 
 # BPF Maps
+
 BPF maps are key/value stores that reside in the kernel. They can be accessed by any BPF program that knows about them. Programs that run in user-space can also access these maps by using file descriptors. You can store any kind of data in a map, as long as you specify the data size correctly beforehand. The kernel treats keys and values as binary blobs, and it doesn’t care about what you keep in a map.
 
+## Creating BPF maps
+The most direct way to create a BPF map is by using the bpf syscall. When the first argument in the call is BPF_MAP_CREATE, you’re telling the kernel that you want to create a new map. This call will return the file descriptor identifier associated with the map you just created. 
+The second argument in the syscall is the configuration for this map:
+
+````c
+union bpf_attr {
+    struct {
+        __u32 map_size;  /* one of the values from bpf_map_type */
+        __u32 key_size;  /* size of the keys, in bytes */
+        __u32 value_size; /* size of the value un bytes */
+        __u32 max_entries; /* maximum number of entries in the map */
+        __u32 map_flags /* flags to modigy hoy we create the map */
+    }
+}
+````
+
+The third argument in the syscall is the size of this configuration attribute.
+For example, you can create a hash-table map to store unsigned integers as keys and values as follows:
+````c
+union bpf_attr my_map { 
+    .map_type = BPF_MAP_TYPE_HASH,
+    .key_size = sizeof(int),
+    .value_size = sizeof(int),
+    .max_entries = 100,
+    .map_flags = BPF_F_NO_PREALLOC,
+};
+int fd = bpf(BPF_MAP_CREATE, &my_map, sizeof(my_map));
+
+````
+
+If the call fails, the kernel returns a value of -1. 
+
+There are helpers available to make map creation easier:
+
+````c
+int fd;
+fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(int), sizeof(int), 100,
+        BPF_F_NO_PREALOC);
+````
+
+Other helpers are used to insert data in the map from the kernel...
+
+````c
+int key, value, result; 
+key = 1234, value = 5678;
+
+result = bpf_map_update_elem(&my_map, &key, &value, BPF_EXIST); 
+if (result == 0)
+    printf("Map updated with new element\n");
+else
+    printf("Failed to update map with new value: %d (%s)\n", result, strerror(errno));
+
+````
+
+... or user-space:
+
+````c
+int key, value, result; 
+key = 1234, value = 5678;
+
+result = bpf_map_update_elem(map_data[0].fd, &key, &value, BPF_EXIST); 
+if (result == 0)
+    printf("Map updated with new element\n");
+else
+    printf("Failed to update map with new value: %d (%s)\n", result, strerror(errno));
+
+````
+
+... and to read data...
+
+````c
+
+int key, value, result; // value is going to store the expected element's value key=1;
+result = bpf_map_lookup_elem(&my_map, &key, &value); 
+if (result == 0)
+    printf("Value read from the map: '%d'\n", value);
+else
+    printf("Failed to read value from the map: %d (%s)\n", result, strerror(errno));
+````
+
+... or delete it:
+
+````c
+bpf_map_delete_element(&my_map, &key);
+````
+
+To iterate through the elements of the map:
+
+````c
+int next_key, lookup_key;
+lookup_key = -1;
+while(bpf_map_get_next_key(map_data[0].fd, &lookup_key, &next_key) == 0) {
+    printf("The next key in the map is: '%d'\n", next_key);
+    lookup_key = next_key;
+}
+````
 
 XDP (Express Data Path)
 =======================
