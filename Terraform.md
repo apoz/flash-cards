@@ -43,10 +43,36 @@ aws_security_group.instance.id
 
 ### Variables
 
+#### Input variables
 ```
 variable "NAME" {
     description: "Optional. Some explanation about the variable",
     default: Optional. Default value for the variable. The value set if not provided by command line (with the `-var` option or with a environment variable with the name "TF_VAR_<var_name>").
     type: Optional. Type constraints in the variable. It can be string, number, bool, list, map, set, object, tuple, and any. If nothing is specified it's `any`.
+```
+If not default value is specified and the value is not set, the user will be prompted to include a value when running apply.
 
+The values can be specified with the following syntax:
+```
+terraform plan -var "server_port=8080
+```
+
+The reference to access the value of a variable is:
+```
+var.<VARIABLE_NAME>
+
+# and to reference the value inside a string
+
+${var.<VARIABLE_NAME>}
+```
+
+#### Output variables
+
+```
+output "<NAME>" {
+    value = <VALUE>,
+    description = "Blah, blah, blah",
+    sensitive = boolean to indicate terraform not to outpu the value
+
+}
 ```
