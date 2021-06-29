@@ -250,4 +250,67 @@ Not recommended as they are error prone.
 Put the terraform config files in a folder per environment.
 Configure different backend per environment (with different authentication mechanisms)
 
-# Pag 175
+### Terraform remote state datasource
+
+There's an special data source called `terraform_remote_state` used for when we need to check some data from a remote terraform status file (read-only).
+
+We have to define the values as outputs in the terraform state file and then:
+
+```
+data "terraform_remote_state" "db" {
+  backend = "s3"
+
+  config = {
+    bucket = "(YOUR_BUCKET_NAME)"
+    key    = "stage/data-stores/mysql/terraform.tfstate"
+    region = "us-east-2"
+  }
+}
+
+# Then we will be able to access the data as
+data.terraform_remote_state.db.outputs.ATTRIBUTE
+
+```
+
+## Built-in functions
+
+Terraform provides some functions that can be accessed fron the config files.
+
+For example, a file can be loaded using the `file` function.
+
+```
+file("user-data.sh")
+```
+
+That feature can be combined with the `template_file` data source. Example:
+
+```
+data "template_file" "user_data" {
+  template = file("user-data.sh")
+
+  vars = {
+    server_port = var.server_port
+    db_address  = data.terraform_remote_state.db.outputs.address
+    db_port     = data.terraform_remote_state.db.outputs.port
+  }
+}
+```
+
+...where the script has the following format...
+
+```
+#!/bin/bash
+
+cat > index.html <<EOF
+<h1>Hello, World</h1>
+<p>DB address: ${db_address}</p>
+```
+
+...and we can access the vaue as...
+
+```
+user_data       = data.template_file.user_data.rendered
+```
+
+
+# Pag 192
