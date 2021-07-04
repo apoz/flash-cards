@@ -29,6 +29,20 @@ This commands first plans the changes in infra Vs the configuration file and the
 
 Outputs (in DOT languaje) of the dependency graph for the terraform file/files.
 
+```
+terraform graph > graph.dot
+graphviz 
+
+```
+
+### fmt
+
+Linter to set the format of the terraform files properly.
+
+### validate
+
+Validates the configuration files for terraform.
+
 ### output
 
 Outputs the output variables for the terraform code.
@@ -46,6 +60,23 @@ Updates the terraform status file with the current infra status.
 ### destroy
 
 Removes the infrastructure.
+
+We can use `-target <PROVIDER>_<RESOURCE>.<NAME>` just to delete some element.
+
+### console
+
+It gives a console for you to check.
+
+#### taint
+
+Terraform taint command manually marks a terraform managed resource as tainted, forcing it to be destroyed and recreated on the next apply commnad.
+
+```
+terraform taint aws_instance.myec2
+```
+The only modification that happens is that the status field of the resource in the state file is "tainted".
+
+Note that tainting a resource for recreation may affect resources that depend on the newly tainted resource. It's important to check the dependency graph.
 
 ### workspace
 
@@ -96,6 +127,68 @@ var.<VARIABLE_NAME>
 ${var.<VARIABLE_NAME>}
 ```
 
+#### Count parameter: loops
+
+You can include a count parameter in some resource and it will create that number of resources. A count.index atribute is differente for each instance of the array which can be accessed by `${count.index}`.
+
+The identifier of the resource, then becomes a list.
+
+#### Conditional statements
+
+Ternary operation 
+```
+condition ? true_val : false_val
+```
+
+We can achieve blocks to be executed or not depending on the content of a variable:
+
+```
+resource "aws_instance" "test" {
+
+  ...
+  count = var.istest == true ? 1 : 0
+}
+```
+
+#### Local values
+
+```
+locals {
+  common_tags = {
+    Owner = "Devops team"
+    Service = "backend
+  }
+}
+resource "aws_instance" "test" {
+
+  ...
+  tag = local.common_tags
+
+}
+
+Local values can use functions, etc.
+
+```
+
+##### Approaches to variable assignment
+
+- Command line assignment
+```
+-var="<VARIABLE_NAME>=variableValue"
+```
+- From a file  terraform.tfvars
+```
+# .tfvars file
+variable_name=value
+```
+If the file is called something else, the specific vars file has to be specified with a -var-file="filename".
+
+- Environment variables
+```
+TF_VAR_<variable_name>
+```
+
+
 #### Output variables
 
 ```
@@ -106,6 +199,17 @@ output "<NAME>" {
 
 }
 ```
+
+### Terraform Functions
+
+There are several built in functions, the available functions can be checked in the terraform official documentation.
+
+Examples:
+- file(path_string) -> reads the content of the file in the given path and returns its context as string.
+- element -> (list, index)  extracts an element from a list corresponding to the index
+- lookup -> looks for a key in a map. It receives (map, key, default_value), if no default value, it's optional-
+- timestamp() current timestamp
+- formatDate() specify the format  (format, timestamp)
 
 ### Lifecycle setting
 
@@ -141,6 +245,12 @@ data "aws_vpc" "default" {
 # To reference the data:
 data.<PROVIDER>_<TYPE>.<NAME>.<ATTRIBUTE>
 ```
+
+## Terraform logging
+
+Terraform has detailed logs that can be activated setting the TF_LOG env variable to any value. You can set that variable to TRACE,DEBUG,INFO,WARN or ERROR to change the verbosity of the logs.
+
+There's a TF_LOG_PATH variable also to store the terraform log to the specified log.
 
 ## Terraform state
 
@@ -313,4 +423,144 @@ user_data       = data.template_file.user_data.rendered
 ```
 
 
-# Pag 192
+## Modules
+
+Configuration files that can be reused in several environments.
+They are a set of terraform configuration files in a folder.
+
+The provider definition should be configured by the user and NOT by the module itself.
+Whenever you include a module in your terraform code you have to run `terraform init`
+
+To use a module:
+
+```
+module "<NAME>" {
+  source = "<SOURCE>"  # can be a path to a file or url to a repo(git@github.com:<OWNER>/<REPO>.git//<PATH>?ref=<VERSION>)
+
+  ...
+}
+```
+
+
+In the module you have to set input parameters to be able to modify the module behaviour.
+
+You can define a `locals` section with variables you don't want to expose outside the module.
+
+```
+locals {
+  http_port    = 80
+  any_port     = 0
+  any_protocol = "-1"
+  tcp_protocol = "tcp"
+  all_ips      = ["0.0.0.0/0"]
+}
+```
+
+And then use `local.<NAME>` to access the values.
+
+We can define also output values that can be accessed by `output.<MODULE_NAME>.<OUTPUT_NAME>`
+
+It's necesary to be careful about the paths used in the module. There are some path references that can be used:
+
+```
+path.module -> path of the module
+path.root -> filesystem path of the root module
+path.cwd -> current working directory
+```
+
+# Pag 233
+
+# Udemy course
+
+
+## Terraform providers
+
+From 0.13 version onwards, terraform requires explicit source information for any provider NOT maintained by HashiCorp inside the terraform configuration block:
+
+```
+terraform {
+  required_providers {
+    digitalocean = {
+      source = "digitalocean/digitalocean"
+    }
+  }
+}
+
+provider "digitalocean" {
+  token = "mydigitaloceantoken"
+}
+```
+
+It's important  to set the version, the accepted format for version specifying is the following.
+```
+>=1.0   # greater or equal 1.0
+<=1.0   # less than or equal 1.0
+~>2.0   # any version in the 2.0 range
+>=2.10,<=2.30  # version between those 2
+```
+
+
+Terraform lock file to record the provider selection, and avoid mistake deletions.
+With `terraform init -upgrade` we can upgrade versions of providers.
+
+## Outputs
+
+The possible outputs a resource can output are listed in the documentation as resource attributes.
+
+
+## Load order and semantics
+
+Terraform generally loads all the config files within the directory in alphabetical order. The files must end in either `.tf` or `.tf.json`
+
+## Dynamic block in terraform
+
+Dynamic blocks in terraform allows ut to dynamically construct repeatable nested blocks with is supported inside the resource, data, provider and provisioner blocks.
+
+```
+
+variable "sg_ports" {
+  type = list(number)
+  description = "List of input ports for the SG"
+  default = [8200, 8300, 8400]
+}
+
+resource "aws_security_group" "dynamicsg" {
+  name = "dynamic-sg"
+  description = "ingress for vault"
+
+  dynamic "ingress" {
+    for_each = var.ingress_ports
+    iterator = port
+    content {
+      from_port = port.value
+      to_port = port.value
+      protocol = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+```
+
+
+## Tainting resources in terraform
+
+Imagine you have created some resource from terraform and you have made a lot of manual changes. You have 2 options:
+- Import the changes to terraform
+- Delete and recreate the resource
+
+Taint sets the state of the resource as "tainted" so it's deleted and recreated in the next terraform plan.
+
+## Splat expression
+
+It allows us to get a list of all the attributes.
+
+```
+resource "aws_iam_user" "lb" {
+  name = "iamuser.${count.index}"
+  count = 3
+  path = "/system/"
+}
+
+output "arns" {
+  value = aws_iam_user.lb[*].arn
+}
+```
