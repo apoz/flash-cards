@@ -21,9 +21,17 @@ The following lines should be added to the `.gitignore` file in a repo:
 
 This command does NOT perform any change in the infra, but check what is the current status of the infra and the desired status. It shows then what changes would be made in the infra if we would like to apply the terraform configuration file to the infra.
 
+The outputs:
+
+- `+` something will be added
+- `-` something will be deleted
+- `~` update in place
+
 ### apply
 
 This commands first plans the changes in infra Vs the configuration file and then, after prompting the user for confirmation, applies the changes to obtain the desired state.
+
+with `-auto-approve` you can skip the `yes`.
 
 ### graph
 
@@ -31,7 +39,8 @@ Outputs (in DOT languaje) of the dependency graph for the terraform file/files.
 
 ```
 terraform graph > graph.dot
-graphviz 
+#graphviz package
+cat graph.dot | dot -Tsvg > graph.svg
 
 ```
 
@@ -101,6 +110,44 @@ Usually they are references, that point to values from other parts of the Terraf
 #for example
 aws_security_group.instance.id
 ```
+### Saving terraform plan to a file
+
+This allows us to assure only the changes shown in that terraform plan are applied.
+
+```
+terraform plan -out=path
+#then
+terraform apply path
+```
+
+### terraform output
+
+You can read the variable from the output of a tfstate file.
+
+```
+terraform output variable_name
+```
+
+### Terraform settings
+
+
+```
+terraform {
+  required_version = "> 0.12.0"
+  required_providers = {
+    aws = " > 0.1.1"
+    }
+  }
+```
+
+### Dealing with larger infraestructure
+
+When dealing with larger infraestructure, you will face issues related to API limits for a provider.
+
+Solutions:
+- Switch to smaller configurations where each one can be applied independently.
+- we can prevent terraform from queryin the current state during operationes as terraform plan ( `-refresh=false`)
+- Apply some specific part only with `-target=resource`
 
 ### Variables
 
@@ -563,4 +610,12 @@ resource "aws_iam_user" "lb" {
 output "arns" {
   value = aws_iam_user.lb[*].arn
 }
+```
+
+
+### zipmap function
+
+It constructs a map from a list of keys and a list of values.
+```
+zipmap(["uno","dos","tres"], [1,2,3])
 ```
