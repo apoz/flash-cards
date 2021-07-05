@@ -619,3 +619,37 @@ It constructs a map from a list of keys and a list of values.
 ```
 zipmap(["uno","dos","tres"], [1,2,3])
 ```
+
+
+### Provisioners 
+
+Up to now we've just created infra with terraform but we've not customized.
+Provisioners are used to execute scripts (local or remote) as part of resource creation or deletion.
+
+example:
+```
+resource "aws_instance" "mytest" {
+  ami = "lkadjflkd"
+
+
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo amazon-linux-extras install nginx -y",
+      "sudo another command"
+    ]
+    connection = {
+      type = "ssh"
+      host = self.public_ip
+      user = "ec2_user"
+      key = ${file(./privatekey.pem)}
+    }
+  }
+}
+```
+
+There are mainly 2 types of provisioners:
+
+- *local-exec*: executes something locally after the resource is created. A typical use-case is the execution on ansible playbooks run after the resource is created.
+- *remote-exec*: allows us to execute things in the remote resource.
+There are some other provisioners who can be checked in the documentation.
