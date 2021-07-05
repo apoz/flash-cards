@@ -645,6 +645,10 @@ resource "aws_instance" "mytest" {
       key = ${file(./privatekey.pem)}
     }
   }
+
+  provisioner "local-exec" {
+    command = "echo ${aws_instante.mytest.private_ip} >> private_ips.txt"
+  }
 }
 ```
 
@@ -653,3 +657,137 @@ There are mainly 2 types of provisioners:
 - *local-exec*: executes something locally after the resource is created. A typical use-case is the execution on ansible playbooks run after the resource is created.
 - *remote-exec*: allows us to execute things in the remote resource.
 There are some other provisioners who can be checked in the documentation.
+
+According to some other classification criteria:
+- *Creation-Time provisioner* are only run during creation, NOT during update or any other lifecycle change. If the creation provisioner fails, the resource is marked as `tainted`. If the `when` param is not set, it's a creation provisioner.
+- *Destroy-Time provisioner* Destroy provisioners are run before the resource is destroyed.
+
+```
+ provisioner "local-exec" {
+   when = "destroy"
+   command = "echo "destroying stuff"
+ }
+```
+
+By default, provisioners that fail will also cause the terraform apply itself to fail.
+The `on_failure` setting can be used to change this behaviour:
+
+- *continue* ignore the error and continue with the creation/destruction.
+- *fail* raise an error ans stop applying. This is the default behaviour. If it's a creation provisioner, taint the resource.
+
+### Modules and workspaces
+
+We can refer to different modules in order to keep the DRY principle. We have to install the modules with `terraform init`.
+
+```
+module "myec2" {
+  source = "..\..\modules\whatever"
+}
+```
+
+#### Variables and modules
+
+It's required to define variables for the parameters that we want to change.
+
+We can create a varibles.tf file in the module with default values, so we can set different values to some parameters
+
+```
+module "ec2module" {
+  source = ""
+  instance_type = "t2.micro"
+}
+```
+
+#### Module sources
+
+We can use diferent type of sources for terraform modules:
+- *local modules* local relative path. It has to start with `.` or `..`.
+```
+module "consul" {
+  source = "../consul"
+}
+```
+- *git* they can start with `git::https://..` or `git::ssh://username@...` . You can use the ref=somethig to get the code from a branch or a tag. Terraform also supports `github.com` format
+
+### Terraform registry
+
+Repository of modules written by terraform community.
+There are verified modules in terraform registry that are maintained by some third party vendors. They are reviewed by terraform (blue verification badge in the web).
+
+The url is https://registry.terraform.io
+
+### Terraform workspaces
+
+Terraform allows us to have multiple workspaces, with each of the workspaces we can have different set of environment variables associated.
+
+```
+terraform workspace show  # shows current one
+terraform workspace list  # shows available workspaces
+terraform workspace new dev # creates dev workspace
+terraform workspace select prd # select 
+
+```
+
+You can create a map with a default
+the variable is terraform_workspace
+
+we can use a lookup function
+
+```
+....
+resource "aws_instance" "myinstance" {
+
+  instance_type = lookup(var.instance_type, terraform.workspace)
+
+}
+
+variable "instance_type" {
+  type = "map"
+
+  default = {
+    default = "t2.nano"
+    dev = "t2.micro"
+    prd = "t2.large"
+  }
+}
+
+```
+
+
+In workspaces terraform states are separate. There is a `terraform.tfstate.d` directory which has different subdirectories one per workspace.
+For the default workspace the tfsate file is in the root directory.
+
+### Team collaboration in terraform
+
+#### Git
+
+There are security challenges in committing tfstate into git. It's important NOT to store keys/passwords in git.
+
+We can use ${file(file_path_ouside_the_repository)} BUT if you store the tfstate file into GIT the passwords are stored there in clear text.
+
+Terraform and .gitignore: It's recommended to include these files:
+- *.terraform directory*: this dir will be recreated when a `terraform init` is run.
+- *terraform.tfvars* : likely to contain sensitive data like usernames / passwords, etc.
+- *terraform.tfstate*: should be stoares in the remote side.
+- *crash.log*: if terraform crashes there will be a file containing the details there. 
+
+### Terraform remote backend
+
+Is a feature that allows to store the tfstate file in a remote central repository (not in git). The typical backend is S3 in aws.
+
+Supported backend types:
+- *standard backend type*: supports state storage and locking.
+- *enhanced backend type*: All features of standard + remote management.
+
+```
+terraform {
+  backend "s3" {
+    bucket = ""
+    key = ""
+    region = ""
+    access_key = ""
+    secret_key = ""
+
+  }
+}
+```
