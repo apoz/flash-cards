@@ -66,6 +66,27 @@ terraform output var_name
 ### refresh
 Updates the terraform status file with the current infra status.
 
+### state
+
+Terraform command to deal with state modifications. Subcommands:
+- *list*: list resources within terraform state file
+- *mv* (source destination): moves item with terraform state. Used mainly if you want to rename an existing resource without destroying and recreating it. This command outputs a backup copy before doing any change.
+- *pull*: manually download and output the state from remote state. Useful for reading values out of a state file.
+- *push*: manaually upload a local state file to a remote state
+- *rm*: remove items from a terraform state file. Items removed from the Terraform state are NOT physically destroyed. Are no longer managed by terraform. If you do a terraform plan with the resource in the code, it will be recreated again.
+- *show*: shows attributes of a single resource in the terraform state
+
+### import
+
+If a resource has been created manually, you can import the resources with import.
+
+We have to create a resource with the same data than the manually created one and then 
+
+```
+terraform implort aws_instance.myec2  INSTANCE_ID_OF_THE_MANUALLY_CREATED
+```
+
+
 ### destroy
 
 Removes the infrastructure.
@@ -782,12 +803,96 @@ Supported backend types:
 ```
 terraform {
   backend "s3" {
-    bucket = ""
-    key = ""
-    region = ""
+    bucket = "mybucket"
+    key = "path/to/my/key"
+    region = "us-east-1"
     access_key = ""
     secret_key = ""
 
   }
+}
+```
+Whenever you are performing a write operation, terraform would lock the state file. Just with S3 backend locking is NOT suported, we have to do it with DynamoDB, then we have to include the following param:
+
+```
+...
+dynamodb_table = "whatever"
+```
+
+The dynamoDB table has to have a key called LockID
+
+
+### Security
+
+#### Handilng access and secret keys in providers
+
+Never ever have any credentials in a vars or resources file.
+
+For aws, if we have the aws cli with the credentials properly configured, we can remove the access keys from the provider, because terraform will take them from there.
+
+Provider configuration if we want to deploy some stuff in different aws regions or with different accounts. Up to now we've configured those values at provisioner level.
+
+```
+resource "aws_eip" "myeip" {
+  vpc = "true"
+}
+
+
+resource "aws_eip" "myeip02" {
+  vpc = "true"
+}
+
+provider "aws" {
+  region = "us-west-1"
+  provider = "aws.east"
+}
+
+provider "aws" {
+  alias = "east"
+  region = "us-east-1"
+}
+```
+
+Alias allows us to have more than one configuration per provider.
+
+#### Handling multiple AWS profiles with terraform providers
+
+You can have more than one credential pair from aws CLI, selected with `--profile`.
+
+You can add the `profile` name in the provider configuration.
+
+#### Terraform with STS
+
+Multiple AWS accounts, use a single identity and you can assume different roles.
+ STS user -> assign a role with json policy. We have to give the user the assumeRole policy.
+
+ With aws we do it like:
+```
+aws sts assume-role --role-arn arn:aws:iam::21389047182343:role/whatevet --role-session-name my_role_session
+
+# then we get an accessKeyId, SecretAccessKey, SessionToken
+```
+
+The config for this, we have to set the configuration in the provider itself:
+```
+provider "aws" {
+  region = "us-east-1"
+  assume_role {
+    role_arn = ""
+    session_name = ""
+  }
+}
+```
+
+#### Sensitive parameter
+
+For the outputs, we can set a param as `sensitive = true`
+
+```
+output "db_password" {
+  value = local.db_password
+  description = "description of the parameter"
+  sensitive = true
+
 }
 ```
