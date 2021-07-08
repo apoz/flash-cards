@@ -17,6 +17,8 @@ The following lines should be added to the `.gitignore` file in a repo:
 *.tfstate.backup
 ```
 
+Terraform fetches any required providers and modules and stores them in the `.terraform` directory. If you add, change or update your modules or providers you will need to run it again.
+
 ### plan
 
 This command does NOT perform any change in the infra, but check what is the current status of the infra and the desired status. It shows then what changes would be made in the infra if we would like to apply the terraform configuration file to the infra.
@@ -62,6 +64,10 @@ terraform output
 
 terraform output var_name
 ```
+
+### login
+
+It will save the token you provide in a file so you don't have to deal with the authorization.
 
 ### refresh
 Updates the terraform status file with the current infra status.
@@ -194,6 +200,14 @@ var.<VARIABLE_NAME>
 
 ${var.<VARIABLE_NAME>}
 ```
+
+Ways to set variables (from highest precedence to lowest):
+1 - Command line flag - run as a command line switch.
+2 - Configuration file - set in the terraform.tfvars file
+3 - Environment variable - part of your shell environment
+4 - Default config - default value in variables.tf
+5 - User manual entry - if not specified, prompt the user for entry
+
 
 #### Count parameter: loops
 
@@ -515,6 +529,7 @@ In the module you have to set input parameters to be able to modify the module b
 You can define a `locals` section with variables you don't want to expose outside the module.
 
 ```
+# comment
 locals {
   http_port    = 80
   any_port     = 0
@@ -822,6 +837,22 @@ dynamodb_table = "whatever"
 The dynamoDB table has to have a key called LockID
 
 
+
+You can also use terraform cloud as remote backend. The operations are then executed in terraform cloud instead of the local environment.
+
+```
+terraform {
+   backend "remote" {}
+}
+
+# and then in a backend.hcl
+workspaces { name = "demo-repository" }
+hostname = "app.terraform.io"
+organization = "demo-whatever"
+```
+
+Then if we run a `terraform plan` it's actually run in terraform cloud. It will also show the output of the cost estimation and the sentinel policies that are applied.
+
 ### Security
 
 #### Handilng access and secret keys in providers
@@ -896,3 +927,67 @@ output "db_password" {
 
 }
 ```
+
+
+### Terraform cloud
+
+Manages terraform runs in a consistent and reliable environments with various features like access controls, private registry for sharing modules, policy controls (put some checks in the resources created) and others (comments, etc.).
+
+Based on the terraform plan it provides a monthly/hourly cost estimated.
+
+State files are stored there.
+Variables are stored in terraform cloud.
+
+Terraform cloud has a free tier up to 5 users.
+
+### Sentinel
+
+Sentinel is an embedded policy-as-code framework integrated with the Hashicorp enterprise products.
+
+It enables fine-grained, logic-based policy decisions and can be extended to use info from external sources. It's a PAID feature.
+
+```
+terraform plan ---> sentinel checks ---> terraform apply
+```
+
+A policy is included in a policy-set and then the policy set is associated to the workspace.
+
+This is the web with the documentation for [Sentinel](https://docs.hashicorp.com/sentinel/terraform/)
+
+Example of rule:
+```
+    import "tfplan"
+     
+    main = rule {
+      all tfplan.resources.aws_instance as _, instances {
+        all instances as _, r {
+          (length(r.applied.tags) else 0) > 0
+        }
+      }
+    }
+```
+
+### Terraform configuration language
+
+- A terraform workspace is simply a folder that contains terraform code.
+- Terraform files always end in `*.tf` of `*.tfvars`
+- Most terraform workspaces contain a minimum of 3 files:
+  - *main.tf*: Functional code.
+  - *variables.tf*: This file is for storing variables.
+  - *outputs.tf*: Define what is shown at the end of a terraform run.
+
+```
+# comment
+
+/* Multiline comment
+are written this way */
+```
+
+### Instruqt
+
+It's the hashicorp training platform. [Here is a tutorial](https://instruqt.com/instruqt/tracks/getting-started-with-instruqt)
+
+
+
+
+https://hashicorp.github.io/field-workshops-terraform/slides/aws/terraform-oss/#49
