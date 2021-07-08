@@ -988,6 +988,128 @@ are written this way */
 It's the hashicorp training platform. [Here is a tutorial](https://instruqt.com/instruqt/tracks/getting-started-with-instruqt)
 
 
+### Exams
 
+57 questions
+
+questions:
+- True - False
+- Multichoice
+- Fill in the blank
+
+#### Providers
+ A provider is responsible form understanding API interactions and exposing resources.
+ Most of the available providers correspond to one cloud or on-premises infrastructure platform, and offer resource types that correspond to the features of that platform.
+
+ You can explicitly set a specific section of the provider within the provider block.
+ To updgrade to the latests acceptable version of each provider run `terraform init -upgrade`
+
+ You can have more than one instance of provider with the help of the `alias` parameter.
+The provider without alias is the default provider.
+
+##### Init
+
+Terraform init is used to initializa a working directory containing Terraform configuration files.
+During the init, the config is searched for module blocks and the source code for referenced modules is retrieved from the locations given in their source arguments.
+Terraform must initialize the provider before it can be used.
+Initalization downloads and installs the provider's plugin to that it can later be executed.
+It will not create any sample files like example.tf.
+
+##### Plan
+Terraform plan command is used to create an execution plan.
+It will NOT modify things in infrastructure.
+
+Terraform performs a refresh, unless explicitly disabled, and then determines what actions are necessary to achieve the desired state specified in the configuration files.
+This command is a convenient way to check whether the execution plan for a set of changes matches your expectations without making any changes to real resources or to the state.
+
+##### Apply
+It's used to apply the changes required to reach the desired state of the configuration.
+Terraform apply will also write data to the terraform.tfstate fole.
+Once apply is completed, the resources are immediately available.
+
+##### Refresh
+
+Command used to reconcile the state terraforms knows about with the real-world infrastructure.
+
+This does NOT modify infrastructure but the state file.
+
+##### Destroy
+
+This command is used to destroy the terraform managed infra.
+
+##### Format
+
+The `terraform fmt` command is used to rewrite terraform configuration files to a canonical format and style. 
+
+##### Validate
+
+The `terraform validate` command validates the configuration files in a directory.
+
+It runs checks that verify whether a configuration is syntactically valid and thus primarily useful for general verification of reusable modules, including the correctness of attribute names and value types.
+
+It's safe to run this command automatically as a post-save check in a text editor.
+Validation requires an initialized working directory with any referenced plugins and modules installed.
+
+##### Provisioners
+
+Provisioners can be used to model specific actions on the local machine or on a remote machine in order de prepare servers or other infrastructure objects for service.
+
+Provisioners should only be used as las resort.
+
+- Provisioner are included inside the resource block
+- can be "local-exec" or "remote-exec".
+
+##### Debugging in terraform
+
+- TF_LOG environment variable can be set (TRACE,DEBUG,INFO,WARN...)
+- TF_LOG_PATH can be used to store the login to a file.
+
+##### Import
+
+Terraform can import existing infra that was created by other mean and now it will be managed by terraform.
+The current implementation can only import resources into the state. It does NOT generate configuration for it.
+
+Because of this, prior to running terraform import, it's necessary to write a resource configuration block manually for the resource, to which the imported object will be mapped.
+
+```
+terraform import aws_instance.myec2 instance-id
+```
+
+
+##### Local values
+Local value assigns a name to an expression, allowing it to be used multiple times whithin a module without repeating it.
+
+The expression of a local value can refer to other locals, but cycles are not allowed.
+It's recommnended to group together locically-related local values into a single block, particularly if they depend on each other.
+
+##### Overview of data types
+ - string: sequence of unicode characters representing some text.
+ - list: sequential list of values identified by their position. Starting by 0.
+ - map: group of values identified by named labels
+ - number: integer
+
+ ##### Workspaces
+Each of the workspaces can have a different set of environment variables associated.
+
+Workspaces allow multiple state files of a single configuration.
+
+##### Modules
+
+We can centralize the terraform resouces and call out from tf files whenever required.
+
+Root and child
+Every terraform config has at least one module known as root module, that consists of the resources defined in the tf files in the main working directory.
+
+A module can call other modules, which lets you include the child's module's resources in the configuration in a concise way.
+
+The resources defined in a module are encpasulated, so the calling module cannot access their attributes directly. The child module can define output values to export certain values to be accessed by the calling module.
+
+The `sensitive` parameter can be used not to show the values directly in the std outputs. These value are still recorded in the tfstate file so they are visible to anyone able to access the tfstate info.
+
+It's recommended to explicitly constraint the acceptable version number for each external module to avoid unexpected or unwanted changes. Version constraints are only supported for modules installed from a module registry.
+
+Terraform registry is integrated directly into terraform.
+The format to reference a module is `<NAMESPACE>/<NAME>/<PROVIDER>`
+For private regitstry -> we have to prepend `<HOSTNAME>/`
 
 https://hashicorp.github.io/field-workshops-terraform/slides/aws/terraform-oss/#49
