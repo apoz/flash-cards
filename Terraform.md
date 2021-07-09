@@ -1112,4 +1112,112 @@ Terraform registry is integrated directly into terraform.
 The format to reference a module is `<NAMESPACE>/<NAME>/<PROVIDER>`
 For private regitstry -> we have to prepend `<HOSTNAME>/`
 
+
+##### Functions
+
+Terraform language includes a number of built-in functions that you can use to transform and combine values.
+
+User defined functions are not supported. Beware of the basic functions as lookup, max, min.
+
+##### Count and count.index
+
+Count alllows us to have a set of objects so you can modify the configuration for each instance
+
+#####  Find the issue use case.
+
+Not recommended practices.
+
+##### Terraform lock
+
+If supported by the backend, terraform will lock your state for all the operations that could write the state.
+Terraform has a force-unlock command to manually unlock the state if unlocking failed.
+
+`terraform force-unlock LOCK_ID [DIR]`
+
+##### Resources deleted out of terraform
+
+You have created an ec2 instance and someone manually modified the type from t2.micro to t2.large. If you do a terraform plan, terraform will see the current state is t2.large and the desired state is t2.micro. It will try to change the instance back to t2.micro.
+
+##### Resource block
+
+Each resource block describes one or more infrastructure object. They have a "resource type" and "local name".
+
+##### Sentinel 
+
+Sentinel is an embedded policy-as-code framework integrated with the hashicorp enterprise products.
+
+- Verify if the EC2 instance has tags
+- Verify a S3 bucket has encryption enabled
+
+
+##### Sensitive data in state file
+
+If you manage any sensitive data within Terraform, treat the state itself as sensitive data.
+ 
+ Approaches:
+ - Terraform cloud always encrypts the state at rest and protects with TLS in transit.
+ - S3 backend supports encryption at rest when encrypt option is enabled.
+
+ Hardcoding credentials into any terraform config is NOT recommended.
+
+ You can store the credentials outside the terraform configuration.
+ Storing credentials as part of environment variables is much better approach than hard coding it in the system.
+
+##### Remote backend
+The remote backend stores terraform state and may be used to run operations in terraform cloud.
+When using full remote operations, plan or apply can be run in terraform cloud env streaming the output to the local terminal.
+
+##### Terraform Graph
+
+DOT format, that can be easily converted to image.
+
+##### Splat expression
+
+Allow us to get a some attribute for elements.
+```
+resource "aws_instance" "MYNAME" {
+  ami = "asdf"
+  ...
+  ebs_block_device {
+    asldkfjadsf
+  }
+  ebs_block_device {
+    asldkfjadsf
+  }
+}
+```
+
+You can use the splat expression here : aws_instance.MYNAME.ebs_block_device[*].device_name
+
+Terminology:
+- Resource type -> aws_instance
+- Local name -> "MYNAME"
+- Argument name -> ami
+- Argument value -> asdfg
+
+##### Provider
+Provider configuration block is not mandatory for all the terrraform configurations.
+
+##### Output
+
+Terraform output is a command used to extract the value of an output variable from the state file.
+
+##### Benefits of IaC tools
+- Automation
+- Versioning
+- Reusability
+
+
+
+
+
+
+
+
+https://www.youtube.com/watch?v=fOybhcbuxJ0
+
+
+
 https://hashicorp.github.io/field-workshops-terraform/slides/aws/terraform-oss/#49
+
+
