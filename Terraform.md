@@ -1,5 +1,147 @@
 # Terraform
 
+## Terraform Language
+
+The main purpose of the terraform language is declaring **resources** that represent infrastructure objects.
+
+A **terraform configuration** is a complete document in the terraform language that tells terraform how to manage a given collection of infrastructure.
+
+The Terraform language is declarative, describing an intended goal rather than the steps to reach that goal. The ordering of blocks and the files they are organized into are generally not significant; Terraform only considers implicit and explicit relationships between resources when determining an order of operations.
+
+Example:
+
+```
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 1.0.4"
+    }
+  }
+}
+
+variable "aws_region" {}
+
+variable "base_cidr_block" {
+  description = "A /16 CIDR range definition, such as 10.1.0.0/16, that the VPC will use"
+  default = "10.1.0.0/16"
+}
+
+variable "availability_zones" {
+  description = "A list of availability zones in which to create subnets"
+  type = list(string)
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+resource "aws_vpc" "main" {
+  # Referencing the base_cidr_block variable allows the network address
+  # to be changed without modifying the configuration.
+  cidr_block = var.base_cidr_block
+}
+
+resource "aws_subnet" "az" {
+  # Create one subnet for each given availability zone.
+  count = length(var.availability_zones)
+
+  # For each subnet, use one of the specified availability zones.
+  availability_zone = var.availability_zones[count.index]
+
+  # By referencing the aws_vpc.main object, Terraform knows that the subnet
+  # must be created only after the VPC is created.
+  vpc_id = aws_vpc.main.id
+
+  # Built-in functions and operators can be used for simple transformations of
+  # values, such as computing a subnet address. Here we create a /20 prefix for
+  # each subnet, using consecutive addresses for each availability zone,
+  # such as 10.1.16.0/20 .
+  cidr_block = cidrsubnet(aws_vpc.main.cidr_block, 4, count.index+1)
+}
+
+```
+
+### Files and directories
+
+Code in the Terraform language is stored in plain text files with the `.tf` file extension. There is also a JSON-based variant of the language that is named with the `.tf.json` file extension.
+
+Files containing Terraform code are often called configuration files.
+
+Configuration files must always use UTF-8 encoding, and by convention usually use Unix-style line endings (LF) rather than Windows-style line endings (CRLF), though both are accepted.
+
+#### Directories and modules
+
+A module is a collection of `.tf` and/or `.tf.json` files kept together in a directory.
+
+A Terraform module only consists of the top-level configuration files in a directory; nested directories are treated as completely separate modules, and are not automatically included in the configuration.
+
+Terraform evaluates all of the configuration files in a module, effectively treating the entire module as a single document. Separating various blocks into different files is purely for the convenience of readers and maintainers, and has no effect on the module's behavior.
+
+A Terraform module can use module calls to explicitly include other modules into the configuration. These child modules can come from local directories (nested in the parent module's directory, or anywhere else on disk), or from external sources like the `Terraform Registry`.
+
+#### The root module
+
+Terraform always runs in the context of a single root module. A complete Terraform configuration consists of a root module and the tree of child modules (which includes the modules called by the root module, any modules called by those modules, etc.).
+
+- In Terraform CLI, the root module is the working directory where Terraform is invoked. (You can use command line options to specify a root module outside the working directory, but in practice this is rare. )
+- In Terraform Cloud and Terraform Enterprise, the root module for a workspace defaults to the top level of the configuration directory (supplied via version control repository or direct upload), but the workspace settings can specify a subdirectory to use instead.
+
+#### Override files
+
+Terraform normally loads all of the .tf and .tf.json files within a directory and expects each one to define a distinct set of configuration objects. If two files attempt to define the same object, Terraform returns an error.
+
+In some rare cases, it is convenient to be able to override specific portions of an existing configuration object in a separate file. For example, a human-edited configuration file in the Terraform language native syntax could be partially overridden using a programmatically-generated file in JSON syntax.
+
+For these rare situations, Terraform has special handling of any configuration file whose name ends in _override.tf or _override.tf.json. This special handling also applies to a file named literally override.tf or override.tf.json.
+
+Terraform initially skips these override files when loading configuration, and then afterwards processes each one in turn (in lexicographical order). For each top-level block defined in an override file, Terraform attempts to find an already-defined object corresponding to that block and then merges the override block contents into the existing object.
+
+Use override files only in special circumstances. Over-use of override files hurts readability, since a reader looking only at the original files cannot easily see that some portions of those files have been overridden without consulting all of the override files that are present. When using override files, use comments in the original files to warn future readers about which override files apply changes to each block.
+
+### Syntax
+
+#### Terminology
+- **Argument**: an argument assigns a value to a particular name. The identifier before the equal is the *argument name* and the part after the equal the *argument value*. It can be also defined as *attribute* in general HCL terminology.
+- **Block**: is a container for other content. A block has a *type* (for example resource). Each block type defines how many labels are expected after it. *Block body* is delimited by `{}`
+- **Identifier**: identifiers can contain letters, digits, underscores(_) and hyphens(-). The first character can NOT be a digit.
+- **Comment**: single line can be specified with `#`or `//`. Multiline are defined by `/* ... */`
+
+#### tf.json syntax example
+```json
+{
+  "resource": {
+    "aws_instance": {
+      "example": {
+        "instance_type": "t2.micro",
+        "ami": "ami-abc123"
+      }
+    }
+  }
+}
+```
+#### Style conventions
+- Indent 2 spaces for each nesting values
+- When multiple arguments appear in consecutive lines, align `=` signs.
+
+### Resources
+
+https://www.terraform.io/docs/language/resources/index.html
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## Terraform general considerations
 
 - The possible outputs a resource can output are listed in the documentation as resource attributes.
