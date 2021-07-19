@@ -1,43 +1,56 @@
+# Terraform
 
-## Commands
+## Terraform Commands
 
-### init
+### terraform init
 
-You have got to run this command once when working with new terraform code.
+You have got to run this command at least once when working with new terraform code.
 
-With this command terraform will:
-- download the code for the providers used in terraform config file. The code for the providers is stored in a `.terraform` folder.
+With this command terraform will download the code for the providers and modules used in terraform code. The code for the providers and modules is stored in a `.terraform` folder. If you add, change or update your modules or providers (or their version requirements) you will need to run it again.
 
 This command is idempotent, you can run it several times in the same directory.
 
-The following lines should be added to the `.gitignore` file in a repo:
+The following lines should be added to the `.gitignore` file in a repo in order NOT to upload those files to the git repository (if the code is stored in git):
 ```
 .terraform
 *.tfstate
 *.tfstate.backup
 ```
 
-Terraform fetches any required providers and modules and stores them in the `.terraform` directory. If you add, change or update your modules or providers you will need to run it again.
+Terraform lock file to record the provider selection, and avoid mistake deletions.
+With `terraform init -upgrade` we can upgrade versions of providers.
 
-### plan
+### terraform plan
 
-This command does NOT perform any change in the infra, but check what is the current status of the infra and the desired status. It shows then what changes would be made in the infra if we would like to apply the terraform configuration file to the infra.
+This command does NOT perform any change in the infra, but check **what is the current status of the infra** and the difference with the desired status. 
+It shows then what changes would be made in the infra if we would like to apply the terraform configuration file to the infra.
 
-The outputs:
+The output meanings:
 
 - `+` something will be added
 - `-` something will be deleted
 - `~` update in place
 
-### apply
+We can also output the terraform plan to a file. This allows us to assure only the changes shown in that terraform plan are applied.
 
-This commands first plans the changes in infra Vs the configuration file and then, after prompting the user for confirmation, applies the changes to obtain the desired state.
+```
+terraform plan -out=path
+#then
+terraform apply path
+```
 
-with `-auto-approve` you can skip the `yes`.
+We can prevent terraform from queryin the current state during operationes as terraform plan ( with the option `-refresh=false`) if we need to reduce the amount of API calls to a provider when doing some plan and apply.
 
-### graph
+### terraform apply
 
-Outputs (in DOT languaje) of the dependency graph for the terraform file/files.
+This commands first updates the current status, then plans the changes that should be made in infra from the current status Vs the desired state (configuration files) and then, after prompting the user for confirmation, applies the changes to obtain the desired state (with `-auto-approve` option you can skip the program prompting for confirmation `yes`).
+
+You can apply some specific part/resource of the code only with `-target=resource` option.
+
+
+### terraform graph
+
+Terraform outputs (in DOT languaje) the dependency graph for the terraform file/files.
 
 ```
 terraform graph > graph.dot
@@ -46,17 +59,18 @@ cat graph.dot | dot -Tsvg > graph.svg
 
 ```
 
-### fmt
+### terraform fmt
 
 Linter to set the format of the terraform files properly.
 
-### validate
+### terraform validate
 
 Validates the configuration files for terraform.
 
-### output
+### terraform output
 
-Outputs the output variables for the terraform code.
+Outputs the output variables for the terraform code taking its value from the state file.
+
 ```
 terraform output
 
@@ -65,58 +79,63 @@ terraform output
 terraform output var_name
 ```
 
-### login
+### terraform login
 
 It will save the token you provide in a file so you don't have to deal with the authorization.
 
-### refresh
+### terraform refresh
 Updates the terraform status file with the current infra status.
 
-### state
+### terraform state
 
 Terraform command to deal with state modifications. Subcommands:
 - *list*: list resources within terraform state file
 - *mv* (source destination): moves item with terraform state. Used mainly if you want to rename an existing resource without destroying and recreating it. This command outputs a backup copy before doing any change.
 - *pull*: manually download and output the state from remote state. Useful for reading values out of a state file.
-- *push*: manaually upload a local state file to a remote state
+- *push*: manually upload a local state file to a remote state.
 - *rm*: remove items from a terraform state file. Items removed from the Terraform state are NOT physically destroyed. Are no longer managed by terraform. If you do a terraform plan with the resource in the code, it will be recreated again.
 - *show*: shows attributes of a single resource in the terraform state
 
-### import
+### terraform import
 
 If a resource has been created manually, you can import the resources with import.
 
-We have to create a resource with the same data than the manually created one and then 
+We have to create a resource with the same data than the manually created one and then run the terraform import code. 
 
 ```
-terraform implort aws_instance.myec2  INSTANCE_ID_OF_THE_MANUALLY_CREATED
+terraform import aws_instance.myec2  INSTANCE_ID_OF_THE_MANUALLY_CREATED_INSTANCE
 ```
 
-
-### destroy
+### terraform destroy
 
 Removes the infrastructure.
 
-We can use `-target <PROVIDER>_<RESOURCE>.<NAME>` just to delete some element.
+We can use `-target <PROVIDER>_<RESOURCE>.<NAME>` if we want to delete just some element.
 
-### console
+### terraform console
 
-It gives a console for you to check.
+It gives a console for you to check the output of functions, etc.
 
-#### taint
+#### terraform taint
 
 Terraform taint command manually marks a terraform managed resource as tainted, forcing it to be destroyed and recreated on the next apply commnad.
 
 ```
 terraform taint aws_instance.myec2
 ```
+
 The only modification that happens is that the status field of the resource in the state file is "tainted".
 
-Note that tainting a resource for recreation may affect resources that depend on the newly tainted resource. It's important to check the dependency graph.
+Note that tainting a resource for recreation may affect resources that depend on the newly tainted resource. It's important to check the dependency graph whe using taint command.
 
-### workspace
+### terraform workspace
 
 Shows and sets the workspace.
+
+Subcommands:
+- **show**: shows the available workspaces.
+- **new**: creates a new workspace.
+- **select**: selects a workspace to be used.
 
 ```
 terraform workspace show
@@ -126,7 +145,7 @@ terraform workspace new my_new_workspace
 terraform workspace select my_workspace
 ```
 
-## Concepts
+## Terraform code concepts
 
 ### Expressions
 
@@ -137,26 +156,10 @@ Usually they are references, that point to values from other parts of the Terraf
 #for example
 aws_security_group.instance.id
 ```
-### Saving terraform plan to a file
-
-This allows us to assure only the changes shown in that terraform plan are applied.
-
-```
-terraform plan -out=path
-#then
-terraform apply path
-```
-
-### terraform output
-
-You can read the variable from the output of a tfstate file.
-
-```
-terraform output variable_name
-```
 
 ### Terraform settings
 
+The configuration of terraform and its providers is set in a `terraform` section in the terraform code.
 
 ```
 terraform {
@@ -167,7 +170,7 @@ terraform {
   }
 ```
 
-### Dealing with larger infraestructure
+### Dealing with larger infrastructure
 
 When dealing with larger infraestructure, you will face issues related to API limits for a provider.
 
@@ -176,9 +179,11 @@ Solutions:
 - we can prevent terraform from queryin the current state during operationes as terraform plan ( `-refresh=false`)
 - Apply some specific part only with `-target=resource`
 
-### Variables
+### Terraform variables
 
 #### Input variables
+The format of the code to define variables is:
+
 ```
 variable "NAME" {
     description: "Optional. Some explanation about the variable",
@@ -187,10 +192,12 @@ variable "NAME" {
 ```
 If not default value is specified and the value is not set, the user will be prompted to include a value when running apply.
 
-The values can be specified with the following syntax:
+The values can be specified with the following syntax in the CLI:
 ```
-terraform plan -var "server_port=8080
+terraform plan -var "server_port=8080"
 ```
+... or with a environment variable of the form `TF_VAR_<var_name>`
+... or with a `.tfvars` file.
 
 The reference to access the value of a variable is:
 ```
@@ -203,7 +210,18 @@ ${var.<VARIABLE_NAME>}
 
 Ways to set variables (from highest precedence to lowest):
 1 - Command line flag - run as a command line switch.
+```
+-var="<VARIABLE_NAME>=variableValue"
+#
+terraform plan -var "server_port=8080"
+```
 2 - Configuration file - set in the terraform.tfvars file
+```
+# .tfvars file
+variable_name=value
+```
+If the file is called something else, the specific vars file has to be specified with a -var-file="filename".
+
 3 - Environment variable - part of your shell environment
 4 - Default config - default value in variables.tf
 5 - User manual entry - if not specified, prompt the user for entry
@@ -213,7 +231,7 @@ Ways to set variables (from highest precedence to lowest):
 
 You can include a count parameter in some resource and it will create that number of resources. A count.index atribute is differente for each instance of the array which can be accessed by `${count.index}`.
 
-The identifier of the resource, then becomes a list.
+The identifier of the resource, then becomes a list automatically.
 
 #### Conditional statements
 
@@ -234,6 +252,8 @@ resource "aws_instance" "test" {
 
 #### Local values
 
+Values in the code that can be referenced multiple times.
+
 ```
 locals {
   common_tags = {
@@ -252,32 +272,15 @@ Local values can use functions, etc.
 
 ```
 
-##### Approaches to variable assignment
-
-- Command line assignment
-```
--var="<VARIABLE_NAME>=variableValue"
-```
-- From a file  terraform.tfvars
-```
-# .tfvars file
-variable_name=value
-```
-If the file is called something else, the specific vars file has to be specified with a -var-file="filename".
-
-- Environment variables
-```
-TF_VAR_<variable_name>
-```
-
-
 #### Output variables
+
+Output values from a module or our code.
 
 ```
 output "<NAME>" {
     value = <VALUE>,
     description = "Blah, blah, blah",
-    sensitive = boolean to indicate terraform not to outpu the value
+    sensitive = boolean to indicate terraform not to output the value directly on the std output
 
 }
 ```
@@ -286,10 +289,48 @@ output "<NAME>" {
 
 There are several built in functions, the available functions can be checked in the terraform official documentation.
 
+
 Examples:
 - file(path_string) -> reads the content of the file in the given path and returns its context as string.
+
+For example, a file can be loaded using the `file` function.
+
+```
+file("user-data.sh")
+```
+
+That feature can be combined with the `template_file` data source. Example:
+
+```
+data "template_file" "user_data" {
+  template = file("user-data.sh")
+
+  vars = {
+    server_port = var.server_port
+    db_address  = data.terraform_remote_state.db.outputs.address
+    db_port     = data.terraform_remote_state.db.outputs.port
+  }
+}
+```
+
+...where the script has the following format...
+
+```
+#!/bin/bash
+
+cat > index.html <<EOF
+<h1>Hello, World</h1>
+<p>DB address: ${db_address}</p>
+```
+
+...and we can access the vaue as...
+
+```
+user_data       = data.template_file.user_data.rendered
+```
+
 - element -> (list, index)  extracts an element from a list corresponding to the index
-- lookup -> looks for a key in a map. It receives (map, key, default_value), if no default value, it's optional-
+- lookup -> looks for a key in a map. It receives (map, key, default_value), if the key does not exist in the map, the default value is returned, it's optional-
 - timestamp() current timestamp
 - formatDate() specify the format  (format, timestamp)
 
@@ -303,7 +344,7 @@ lifecycle {
 }
 ```
 
-We can prevent also the deletion of a resource:
+We can prevent also the deletion of a resource (this can be useful to specify resources that should NOT be deleted accidentally):
 ```
 lifecycle {
     prevent_destroy = true
@@ -312,7 +353,7 @@ lifecycle {
 
 ### Datasources
 
-Represents a piece of read-only information that is fetched from the provider.
+Represents a piece of read-only information that is fetched from a provider.
 
 ```
 data "<PROVIDER>_<TYPE>" "<NAME> {
@@ -349,7 +390,7 @@ It's  a bad idea to store terraform state files in version control:
 - Lack of locking
 - Secrets: all data in terraform state files is stored in plain text.
 
-The best way to manage shared storage files is to use Terraform build-in support for remote backends:
+The best way to manage shared storage files is to use Terraform built-in support for remote backends:
 - Terraform will load the state after a plan or apply command.
 - It will include locking
 - Remote backends usually support encryption
@@ -411,7 +452,7 @@ terraform {
     region         = "us-east-2"
 
     # Replace this with your DynamoDB table name!
-    dynamodb_table = "y-terraform-state-locks"
+    dynamodb_table = "my-terraform-state-locks"
     encrypt        = true
   }
 }
@@ -423,14 +464,13 @@ The `backend` configuration code does not allow you to use any variable or refer
 The `key` parameter in the s3 has to be unique per module!
 
 It's better to use a partial configuration strategy, where you can pass a file with some variable definitions  in the form:
+
 ```
 # backend.hcl
 bucket         = "my-terraform-state"
 region         = "us-east-2"
 dynamodb_table = "my-terraform-locks"
-enc
-
-enrypt        = true
+encrypt        = true
 ```
 and pass it as parameter when running terraform with `terraform init -backend-config=backend.hcl`.
 
@@ -464,48 +504,7 @@ data.terraform_remote_state.db.outputs.ATTRIBUTE
 
 ```
 
-## Built-in functions
-
-Terraform provides some functions that can be accessed fron the config files.
-
-For example, a file can be loaded using the `file` function.
-
-```
-file("user-data.sh")
-```
-
-That feature can be combined with the `template_file` data source. Example:
-
-```
-data "template_file" "user_data" {
-  template = file("user-data.sh")
-
-  vars = {
-    server_port = var.server_port
-    db_address  = data.terraform_remote_state.db.outputs.address
-    db_port     = data.terraform_remote_state.db.outputs.port
-  }
-}
-```
-
-...where the script has the following format...
-
-```
-#!/bin/bash
-
-cat > index.html <<EOF
-<h1>Hello, World</h1>
-<p>DB address: ${db_address}</p>
-```
-
-...and we can access the vaue as...
-
-```
-user_data       = data.template_file.user_data.rendered
-```
-
-
-## Modules
+## Terraform Modules
 
 Configuration files that can be reused in several environments.
 They are a set of terraform configuration files in a folder.
@@ -551,10 +550,6 @@ path.root -> filesystem path of the root module
 path.cwd -> current working directory
 ```
 
-# Pag 233
-
-# Udemy course
-
 
 ## Terraform providers
 
@@ -582,9 +577,11 @@ It's important  to set the version, the accepted format for version specifying i
 >=2.10,<=2.30  # version between those 2
 ```
 
-
 Terraform lock file to record the provider selection, and avoid mistake deletions.
 With `terraform init -upgrade` we can upgrade versions of providers.
+
+
+####################
 
 ## Outputs
 
