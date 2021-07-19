@@ -1149,6 +1149,7 @@ Sentinel is an embedded policy-as-code framework integrated with the hashicorp e
 - Verify if the EC2 instance has tags
 - Verify a S3 bucket has encryption enabled
 
+Sentinel is a proactive service
 
 ##### Sensitive data in state file
 
@@ -1207,10 +1208,119 @@ Terraform output is a command used to extract the value of an output variable fr
 - Versioning
 - Reusability
 
+##### Refresh
 
+Terraform refresh does NOT modify the infrastructure but it modifies the state file.
 
+##### Strings
 
+Slice function is NOT part of the string function. Others like join, split, chomp are part of it.
 
+##### Module version
+It is NOT mandatory to include the module version argument when pulling the code from a terraform registry
+
+##### Dynamic blocks
+
+Overuse of dynamic blocks can make the configuration hard to read and maintain.
+
+##### Apply
+Terraform apply can change, destroy and provision resources, but it can NOT import any resource.
+
+##### Terraform enterprise
+
+Provides several added advantages compared to terraform cloud.
+
+Examples:
+- Single Sign On
+- Auditing
+- Private Data Center Networking
+- Clustering
+- Team and governance features.
+
+##### Variables with undefined values
+
+If you have variables with undefined values it will not directly result in an error.
+Terraform will ask you to supply the value associated with them.
+
+Environment variables can be used also to set variable values. TF_VAR_name
+
+##### Structural data types
+
+A structural type allows multiple values of several distinct types to be grouped together as a single value.
+A list contains multiple values of the same type.
+
+##### Bakend configuration
+
+Backends are configured in the terraform section in terraform config files.
+After configuring a backend, it has to be initialized.
+
+When configuring a backend for the first time, terraform will provide the option to migrate the state file from the current backend to the new one. This lets you adopt a new backend without losing the existing state.
+
+You don't need to specify every required argument in the backend configuration. Ommiting certain arguments may be desirable to avoid storing secrets within the main configuration. The remaining arguments must be provided as part of the initialization process:
+
+```
+terraform init \
+   -backend-config="address=demo.consul.io" \
+   -backend-config="path=example_app/terraform_state" \
+   ...
+```
+
+##### Taing
+
+Terraform taint manually marks a terraform managed resource as tainted, forcing it to be destroyed and recreated *on the next apply*.
+
+##### Provisioner
+
+The local-exec provisioner invokes a local executable after the resource is created. This invokes a process on the machine running Terraform, NOT on the resource.
+
+The remote-exec provisioner invokes a script on a remote resource after it is created. It supports both ssh and winrm type connections.
+
+```
+resource "aws_instance" "myname" {
+
+  provisioner "remote-exec" {
+    inline = [
+      "yum -y install nginx",
+      "yum -y install nano"
+    ]
+  }
+}
+```
+
+Failure behaviour. By default, provisioners that fail will also cause the terraform apply itself to fail.
+The on_failure setting can be used to change this, the allowed values are `continue` ignore the error and `fail`. 
+
+2 types of provisioner:
+- Creation-time provisioner : are only run during the creation, not during updating or any other lifecycle. If creation-time provisioner fails, the resource is marked as tainted.
+- Destroy-time provisioner: Are run BEFORE the resource is destroyed.
+
+##### Variables
+
+Value can be defined through CLI.
+Syntax to load custom vars file `terraform plan -var-file="testing.tfvars"`
+
+##### Local backend
+
+The local backend stores state on the local filesystema, locks that state using system APIs and performs operations locally.
+
+##### Required providers
+
+Each terraform module must declare which providers it requires.
+Providers are declared:
+```
+terraform {
+  required_providers {
+    mycloud = {
+      source = ""
+      version = ""
+    }
+  }
+}
+```
+
+##### Required version
+
+for terraform in terraform section.
 
 
 
