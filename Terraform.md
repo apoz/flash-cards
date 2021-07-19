@@ -1,5 +1,93 @@
 # Terraform
 
+## Terraform general considerations
+
+- The possible outputs a resource can output are listed in the documentation as resource attributes.
+- Terraform generally loads all the config files within the directory in alphabetical order. The files must end in either `.tf` or `.tf.json`
+
+## Terraform Providers
+
+A provider is responsible form understanding API interactions and exposing resources.
+Most of the available providers correspond to one cloud or on-premises infrastructure platform, and offer resource types that correspond to the features of that platform.
+
+You can explicitly set a specific section of the provider within the provider block.
+To updgrade to the latests acceptable version of each provider run `terraform init -upgrade`
+
+You can have more than one instance of provider with the help of the `alias` parameter.
+The provider without alias is the default provider.
+
+Provider configuration block is not mandatory for all the terrraform configurations.
+
+### Required providers
+
+Each terraform module must declare which providers it requires.
+Providers are declared:
+```
+terraform {
+  required_providers {
+    mycloud = {
+      source = ""
+      version = ""
+    }
+  }
+}
+```
+
+### Handilng access and secret keys in providers
+
+Never ever have any credentials in a vars or resources file.
+
+For aws, if we have the aws cli with the credentials properly configured, we can remove the access keys from the provider, because terraform will take them from there.
+
+Provider configuration if we want to deploy some stuff in different aws regions or with different accounts. Up to now we've configured those values at provisioner level.
+
+```
+provider "aws" {
+  region = "us-west-1"
+  provider = "aws.east"
+}
+
+provider "aws" {
+  alias = "east"
+  region = "us-east-1"
+}
+
+resource "aws_eip" "myeip" {
+  vpc = "true"
+}
+
+
+resource "aws_eip" "myeip02" {
+  vpc = "true"
+  provider = asw.east
+}
+
+module "aws_vpc" {
+  source = "./aws_vpc"
+  providers = {
+    aws = aws.east
+  }
+}
+```
+
+Alias allows us to have more than one configuration per provider.
+
+### Terraform configuration language
+
+- A terraform workspace is simply a folder that contains terraform code.
+- Terraform files always end in `*.tf` of `*.tfvars`
+- Most terraform workspaces contain a minimum of 3 files:
+  - *main.tf*: Functional code.
+  - *variables.tf*: This file is for storing variables.
+  - *outputs.tf*: Define what is shown at the end of a terraform run.
+
+```
+# comment
+
+/* Multiline comment
+are written this way */
+```
+
 ## Terraform Commands
 
 ### terraform init
@@ -226,6 +314,12 @@ If the file is called something else, the specific vars file has to be specified
 4 - Default config - default value in variables.tf
 5 - User manual entry - if not specified, prompt the user for entry
 
+##### Variables with undefined values
+
+If you have variables with undefined values it will not directly result in an error.
+Terraform will ask you to supply the value associated with them.
+
+Environment variables can be used also to set variable values. TF_VAR_name
 
 #### Count parameter: loops
 
@@ -252,7 +346,10 @@ resource "aws_instance" "test" {
 
 #### Local values
 
-Values in the code that can be referenced multiple times.
+Values in the code that can be referenced multiple times.Local value assigns a name to an expression, allowing it to be used multiple times whithin a module without repeating it.
+
+The expression of a local value can refer to other locals, but cycles are not allowed.
+It's recommnended to group together locically-related local values into a single block, particularly if they depend on each other.
 
 ```
 locals {
@@ -271,6 +368,8 @@ resource "aws_instance" "test" {
 Local values can use functions, etc.
 
 ```
+
+
 
 #### Output variables
 
@@ -333,6 +432,10 @@ user_data       = data.template_file.user_data.rendered
 - lookup -> looks for a key in a map. It receives (map, key, default_value), if the key does not exist in the map, the default value is returned, it's optional-
 - timestamp() current timestamp
 - formatDate() specify the format  (format, timestamp)
+- zipmap It constructs a map from a list of keys and a list of values.
+```
+zipmap(["uno","dos","tres"], [1,2,3])
+```
 
 ### Lifecycle setting
 
@@ -581,16 +684,10 @@ Terraform lock file to record the provider selection, and avoid mistake deletion
 With `terraform init -upgrade` we can upgrade versions of providers.
 
 
+
 ####################
 
-## Outputs
-
-The possible outputs a resource can output are listed in the documentation as resource attributes.
-
-
-## Load order and semantics
-
-Terraform generally loads all the config files within the directory in alphabetical order. The files must end in either `.tf` or `.tf.json`
+#
 
 ## Dynamic block in terraform
 
@@ -621,17 +718,9 @@ resource "aws_security_group" "dynamicsg" {
 ```
 
 
-## Tainting resources in terraform
-
-Imagine you have created some resource from terraform and you have made a lot of manual changes. You have 2 options:
-- Import the changes to terraform
-- Delete and recreate the resource
-
-Taint sets the state of the resource as "tainted" so it's deleted and recreated in the next terraform plan.
-
 ## Splat expression
 
-It allows us to get a list of all the attributes.
+It allows us to get a list of all the attributes or the attributes of a list of elements.
 
 ```
 resource "aws_iam_user" "lb" {
@@ -646,13 +735,26 @@ output "arns" {
 ```
 
 
-### zipmap function
-
-It constructs a map from a list of keys and a list of values.
 ```
-zipmap(["uno","dos","tres"], [1,2,3])
+resource "aws_instance" "MYNAME" {
+  ami = "asdf"
+  ...
+  ebs_block_device {
+    asldkfjadsf
+  }
+  ebs_block_device {
+    asldkfjadsf
+  }
+}
 ```
 
+You can use the splat expression here : aws_instance.MYNAME.ebs_block_device[*].device_name
+
+Terminology:
+- Resource type -> aws_instance
+- Local name -> "MYNAME"
+- Argument name -> ami
+- Argument value -> asdfg
 
 ### Provisioners 
 
@@ -850,38 +952,36 @@ organization = "demo-whatever"
 
 Then if we run a `terraform plan` it's actually run in terraform cloud. It will also show the output of the cost estimation and the sentinel policies that are applied.
 
+
+#### Remote backend
+
+The remote backend stores terraform state and may be used to run operations in terraform cloud.
+When using full remote operations, plan or apply can be run in terraform cloud env streaming the output to the local terminal.
+
+#### Local backend
+
+The local backend stores state on the local filesystema, locks that state using system APIs and performs operations locally.
+
+##### Bakend configuration
+
+Backends are configured in the terraform section in terraform config files.
+After configuring a backend, it has to be initialized.
+
+When configuring a backend for the first time, terraform will provide the option to migrate the state file from the current backend to the new one. This lets you adopt a new backend without losing the existing state.
+
+You don't need to specify every required argument in the backend configuration. Ommiting certain arguments may be desirable to avoid storing secrets within the main configuration. The remaining arguments must be provided as part of the initialization process:
+
+```
+terraform init \
+   -backend-config="address=demo.consul.io" \
+   -backend-config="path=example_app/terraform_state" \
+   ...
+```
+
+
 ### Security
 
-#### Handilng access and secret keys in providers
 
-Never ever have any credentials in a vars or resources file.
-
-For aws, if we have the aws cli with the credentials properly configured, we can remove the access keys from the provider, because terraform will take them from there.
-
-Provider configuration if we want to deploy some stuff in different aws regions or with different accounts. Up to now we've configured those values at provisioner level.
-
-```
-resource "aws_eip" "myeip" {
-  vpc = "true"
-}
-
-
-resource "aws_eip" "myeip02" {
-  vpc = "true"
-}
-
-provider "aws" {
-  region = "us-west-1"
-  provider = "aws.east"
-}
-
-provider "aws" {
-  alias = "east"
-  region = "us-east-1"
-}
-```
-
-Alias allows us to have more than one configuration per provider.
 
 #### Handling multiple AWS profiles with terraform providers
 
@@ -964,21 +1064,7 @@ Example of rule:
     }
 ```
 
-### Terraform configuration language
 
-- A terraform workspace is simply a folder that contains terraform code.
-- Terraform files always end in `*.tf` of `*.tfvars`
-- Most terraform workspaces contain a minimum of 3 files:
-  - *main.tf*: Functional code.
-  - *variables.tf*: This file is for storing variables.
-  - *outputs.tf*: Define what is shown at the end of a terraform run.
-
-```
-# comment
-
-/* Multiline comment
-are written this way */
-```
 
 ### Instruqt
 
@@ -994,15 +1080,7 @@ questions:
 - Multichoice
 - Fill in the blank
 
-#### Providers
- A provider is responsible form understanding API interactions and exposing resources.
- Most of the available providers correspond to one cloud or on-premises infrastructure platform, and offer resource types that correspond to the features of that platform.
 
- You can explicitly set a specific section of the provider within the provider block.
- To updgrade to the latests acceptable version of each provider run `terraform init -upgrade`
-
- You can have more than one instance of provider with the help of the `alias` parameter.
-The provider without alias is the default provider.
 
 ##### Init
 
@@ -1073,11 +1151,7 @@ terraform import aws_instance.myec2 instance-id
 ```
 
 
-##### Local values
-Local value assigns a name to an expression, allowing it to be used multiple times whithin a module without repeating it.
 
-The expression of a local value can refer to other locals, but cycles are not allowed.
-It's recommnended to group together locically-related local values into a single block, particularly if they depend on each other.
 
 ##### Overview of data types
  - string: sequence of unicode characters representing some text.
@@ -1161,40 +1235,12 @@ If you manage any sensitive data within Terraform, treat the state itself as sen
  You can store the credentials outside the terraform configuration.
  Storing credentials as part of environment variables is much better approach than hard coding it in the system.
 
-##### Remote backend
-The remote backend stores terraform state and may be used to run operations in terraform cloud.
-When using full remote operations, plan or apply can be run in terraform cloud env streaming the output to the local terminal.
 
-##### Terraform Graph
 
-DOT format, that can be easily converted to image.
 
-##### Splat expression
 
-Allow us to get a some attribute for elements.
-```
-resource "aws_instance" "MYNAME" {
-  ami = "asdf"
-  ...
-  ebs_block_device {
-    asldkfjadsf
-  }
-  ebs_block_device {
-    asldkfjadsf
-  }
-}
-```
 
-You can use the splat expression here : aws_instance.MYNAME.ebs_block_device[*].device_name
 
-Terminology:
-- Resource type -> aws_instance
-- Local name -> "MYNAME"
-- Argument name -> ami
-- Argument value -> asdfg
-
-##### Provider
-Provider configuration block is not mandatory for all the terrraform configurations.
 
 ##### Output
 
@@ -1234,37 +1280,14 @@ Examples:
 - Clustering
 - Team and governance features.
 
-##### Variables with undefined values
 
-If you have variables with undefined values it will not directly result in an error.
-Terraform will ask you to supply the value associated with them.
-
-Environment variables can be used also to set variable values. TF_VAR_name
 
 ##### Structural data types
 
 A structural type allows multiple values of several distinct types to be grouped together as a single value.
 A list contains multiple values of the same type.
 
-##### Bakend configuration
 
-Backends are configured in the terraform section in terraform config files.
-After configuring a backend, it has to be initialized.
-
-When configuring a backend for the first time, terraform will provide the option to migrate the state file from the current backend to the new one. This lets you adopt a new backend without losing the existing state.
-
-You don't need to specify every required argument in the backend configuration. Ommiting certain arguments may be desirable to avoid storing secrets within the main configuration. The remaining arguments must be provided as part of the initialization process:
-
-```
-terraform init \
-   -backend-config="address=demo.consul.io" \
-   -backend-config="path=example_app/terraform_state" \
-   ...
-```
-
-##### Taing
-
-Terraform taint manually marks a terraform managed resource as tainted, forcing it to be destroyed and recreated *on the next apply*.
 
 ##### Provisioner
 
@@ -1291,29 +1314,10 @@ The on_failure setting can be used to change this, the allowed values are `conti
 - Creation-time provisioner : are only run during the creation, not during updating or any other lifecycle. If creation-time provisioner fails, the resource is marked as tainted.
 - Destroy-time provisioner: Are run BEFORE the resource is destroyed.
 
-##### Variables
 
-Value can be defined through CLI.
-Syntax to load custom vars file `terraform plan -var-file="testing.tfvars"`
 
-##### Local backend
 
-The local backend stores state on the local filesystema, locks that state using system APIs and performs operations locally.
 
-##### Required providers
-
-Each terraform module must declare which providers it requires.
-Providers are declared:
-```
-terraform {
-  required_providers {
-    mycloud = {
-      source = ""
-      version = ""
-    }
-  }
-}
-```
 
 ##### Required version
 
