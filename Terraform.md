@@ -126,20 +126,390 @@ Use override files only in special circumstances. Over-use of override files hur
 
 ### Resources
 
-https://www.terraform.io/docs/language/resources/index.html
+Resources are the most important element in Terraform language. Each resource block describes one or more infrastructure objects, such as virtual networks, compute instances, or higher-level components such as DNS records.
+
+#### Resource block syntax
+
+Example:
+```
+resource "aws_instance" "web" {
+  ami           = "ami-a1b2c3d4"
+  instance_type = "t2.micro"
+}
+```
+A `resource` block declares a resource of a given type (**"aws_instance"**) with a given local name (**"web"**). The name is used to refer to this resource from elsewhere in the same Terraform module, but has no significance outside that module's scope. The name has to be unique within the module.
+
+Within the block body (between { and }) are the configuration arguments for the resource itself. Most arguments in this section depend on the resource type.
+
+#### Resource types
+
+##### Providers
+
+Each resource type is implemented by a **provider**, which is a plugin for Terraform that offers a collection of resource types.A provider usually provides resources to manage a single cloud or on-premises infrastructure platform. Providers are distributed separately from Terraform itself, but Terraform can automatically install most providers when initializing a working directory.
+
+###### Requiring providers
+
+Each Terraform module must declare which providers it requires, so that Terraform can install and use them. Provider requirements are declared in a required_providers block.
+
+```
+terraform {
+  required_providers {
+    mycloud = {
+      source  = "mycorp/mycloud"
+      version = "~> 1.0"
+    }
+  }
+}
+```
+The required_providers block must be nested inside the top-level terraform block (which can also contain other settings).
+
+Each argument in the required_providers block enables one provider. The key determines the provider's local name (its unique identifier within this module), and the value is an object with the following elements:
+- *source* - the global source address for the provider you intend to use, such as hashicorp/aws. It's comprised of 3 parts `[<HOSTNAME>/]<NAMESPACE>/<TYPE>`. Hostname defaults to `registry.terraform.io`.
+- *version* - a version constraint specifying which subset of available provider versions the module is compatible with.
+
+This format was included in Terraform 0.13 version, 0.12v used the format `mycloud = "~=1.0"` and had no way to specify the source address.
+
+###### Built-in providers
+
+While most Terraform providers are distributed separately as plugins, there is currently one provider that is built in to Terraform itself, which provides the `terraform_remote_state` data source.
+
+Because this provider is built in to Terraform, you don't need to declare it in the required_providers block in order to use its features. 
+
+###### In-house providers
+
+Some organizations develop their own providers to configure proprietary systems, and wish to use these providers from Terraform without publishing them on the public Terraform Registry.
+
+One option for distributing such a provider is to run an in-house private registry, by implementing the provider registry protocol.
+
+Terraform also supports other provider installation methods, including placing provider plugins directly in specific directories in the local filesystem, via filesystem mirrors.
+
+For example, you can use:
+```
+terraform {
+  required_providers {
+    mycloud = {
+      source  = "terraform.example.com/examplecorp/ourcloud"
+      version = ">= 1.0"
+    }
+  }
+}
+```
+And then, in one of the implied local mirror directories, create a structure like this:
+```
+terraform.example.com/examplecorp/ourcloud/1.0.0
+```
+Under that 1.0.0 directory, create one additional directory representing the platform where you are running Terraform, such as linux_amd64 for Linux on an AMD64/x64 processor, and then place the provider plugin executable and any other needed files in that directory.
+
+###### Provider configuration
+
+Provider configurations belong in the root module of a Terraform configuration. (Child modules receive their provider configurations from the root module.
+
+A provider configuration is created with a `provider` block:
+```
+provider "google" {
+  project = "acme-app"
+  region  = "us-central1"
+}
+```
+
+You can use expressions in the values of these configuration arguments, but can only reference values that are known before the configuration is applied. This means you can safely reference input variables, but not attributes exported by resources.
+
+There are also two "meta-arguments" that are defined by Terraform itself and available for all provider blocks:
+- **alias** for using the same provider with different configurations for different resources.
+- **version** no longer recommended
+
+Example of different provider configurations:
+```
+# The default provider configuration; resources that begin with `aws_` will use
+# it as the default, and it can be referenced as `aws`.
+provider "aws" {
+  region = "us-east-1"
+}
+
+# Additional provider configuration for west coast region; resources can
+# reference this as `aws.west`.
+provider "aws" {
+  alias  = "west"
+  region = "us-west-2"
+}
+```
+
+Then, if we need to reference that provider from some resource:
+```
+resource "aws_instance" "foo" {
+  provider = aws.west
+
+  # ...
+}
+```
+To select alternate provider configurations for a child module, use its providers meta-argument to specify which provider configurations should be mapped to which local provider names inside the module:
+```
+module "aws_vpc" {
+  source = "./aws_vpc"
+  providers = {
+    aws = aws.west
+  }
+}
+```
+#### Resource meta-arguments
+
+The Terraform language defines several meta-arguments, which can be used with any resource type to change the behavior of resources.
+
+##### depends_on
+
+Use the depends_on meta-argument to handle hidden resource or module dependencies that Terraform can't automatically infer.
+Explicitly specifying a dependency is only necessary when a resource or module relies on some other resource's behavior but doesn't access any of that resource's data in its arguments.
+
+The depends_on meta-argument, if present, must be a list of references to other resources or child modules in the same calling module. 
+
+The depends_on argument should be used only as a last resort.
+
+##### count
+
+By default, a resource block configures one real infrastructure object. However, sometimes you want to manage several similar objects (like a fixed pool of compute instances) without writing a separate block for each one. Terraform has two ways to do this: **count** and **for_each**.
+
+If a resource or module block includes a count argument whose value is a whole number, Terraform will create that many instances.
+
+The count meta-argument accepts a whole number, and creates that many instances of the resource or module. Each instance has a distinct infrastructure object associated with it, and each is separately created, updated, or destroyed when the configuration is applied.
+
+```
+resource "aws_instance" "server" {
+  count = 4 # create four similar EC2 instances
+
+  ami           = "ami-a1b2c3d4"
+  instance_type = "t2.micro"
+
+  tags = {
+    Name = "Server ${count.index}"
+  }
+}
+```
+
+The count meta-argument accepts numeric expressions. However, unlike most arguments, the count value must be known before Terraform performs any remote resource actions.
+
+If your instances are almost identical, count is appropriate. If some of their arguments need distinct values that can't be directly derived from an integer, it's safer to use for_each.
+
+##### for_each
+
+`for_each` is a meta-argument defined by the Terraform language. It can be used with modules and with every resource type.
+
+The for_each meta-argument accepts a map or a set of strings, and creates an instance for each item in that map or set. Each instance has a distinct infrastructure object associated with it, and each is separately created, updated, or destroyed when the configuration is applied.
+
+Example of map:
+```
+resource "azurerm_resource_group" "rg" {
+  for_each = {
+    a_group = "eastus"
+    another_group = "westus2"
+  }
+  name     = each.key
+  location = each.value
+}
+```
+
+Example of set of strings:
+```
+resource "aws_iam_user" "the-accounts" {
+  for_each = toset( ["Todd", "James", "Alice", "Dottie"] )
+  name     = each.key
+}
+```
+
+The `each` object has 2 attributes:
+- **key**
+- **value**
 
 
+Sensitive values, such as sensitive input variables, sensitive outputs, or sensitive resource attributes cannot be used as arguments to for_each. 
+
+Example:
+```
+variable "vpcs" {
+  type = map(object({
+    cidr_block = string
+  }))
+}
+
+resource "aws_vpc" "example" {
+  # One VPC for each element of var.vpcs
+  for_each = var.vpcs
+
+  # each.value here is a value from var.vpcs
+  cidr_block = each.value.cidr_block
+}
+
+resource "aws_internet_gateway" "example" {
+  # One Internet Gateway per VPC
+  for_each = aws_vpc.example
+
+  # each.value here is a full aws_vpc object
+  vpc_id = each.value.id
+}
+
+output "vpc_ids" {
+  value = {
+    for k, v in aws_vpc.example : k => v.id
+  }
+
+  # The VPCs aren't fully functional until their
+  # internet gateways are running.
+  depends_on = [aws_internet_gateway.example]
+}
+
+```
+
+##### provider
+
+The provider meta-argument specifies which provider configuration to use for a resource, overriding Terraform's default behavior of selecting one based on the resource type name. Its value should be an unquoted <PROVIDER>.<ALIAS> reference.
+
+```
+# default configuration
+provider "google" {
+  region = "us-central1"
+}
+
+# alternate configuration, whose alias is "europe"
+provider "google" {
+  alias  = "europe"
+  region = "europe-west1"
+}
+
+resource "google_compute_instance" "example" {
+  # This "provider" meta-argument selects the google provider
+  # configuration whose alias is "europe", rather than the
+  # default configuration.
+  provider = google.europe
+
+  # ...
+}
+
+```
+
+##### lifecycle
+
+Example:
+```
+resource "azurerm_resource_group" "example" {
+  # ...
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+```
+
+Lifecycle is a nested block that can appear within a resource block. The lifecycle block and its contents are meta-arguments, available for all resource blocks regardless of type.
+
+The following arguments can be used inside:
+- *create_before_destroy* (bool) By default, when Terraform must change a resource argument that cannot be updated in-place due to remote API limitations, Terraform will instead destroy the existing object and then create a new replacement object with the new configured arguments.The create_before_destroy meta-argument changes this behavior so that the new replacement object is created first, and the prior object is destroyed after the replacement is created.
+- *prevent_destroy* (bool) This meta-argument, when set to true, will cause Terraform to reject with an error any plan that would destroy the infrastructure object associated with the resource, as long as the argument remains present in the configuration.
+- *ignore_changes* (list of attribute names) The ignore_changes feature is intended to be used when a resource is created with references to data that may change in the future, but should not affect said resource after its creation. In some rare cases, settings of a remote object are modified by processes outside of Terraform, which Terraform would then attempt to "fix" on the next run. Instead of a list, the special keyword all may be used to instruct Terraform to ignore all attributes, which means that Terraform can create and destroy the remote object but will never propose updates to it.
+```
+resource "aws_instance" "example" {
+  # ...
+
+  lifecycle {
+    ignore_changes = [
+      # Ignore changes to tags, e.g. because a management agent
+      # updates these based on some ruleset managed elsewhere.
+      tags,
+    ]
+  }
+}
+```
+##### provisioner and connection
+
+Provisioners can be used to model specific actions on the local machine or on a remote machine in order to prepare servers or other infrastructure objects for service. Check specific section.
+
+##### Timeouts
+
+Some resource types provide a special timeouts nested block argument that allows you to customize how long certain operations are allowed to take before being considered to have failed. For example, aws_db_instance allows configurable timeouts for create, update and delete operations.
+
+```
+resource "aws_db_instance" "example" {
+  # ...
+
+  timeouts {
+    create = "60m"
+    delete = "2h"
+  }
+}
+
+```
+
+### Data sources
+
+Data sources allow Terraform use information defined outside of Terraform, defined by another separate Terraform configuration, or modified by functions.
+A data source is accessed via a special kind of resource known as a data resource, declared using a data block:
+
+```
+data "aws_ami" "example" {
+  most_recent = true
+
+  owners = ["self"]
+  tags = {
+    Name   = "app-server"
+    Tested = "true"
+  }
+}
+```
+If the query constraint arguments for a data resource refer only to constant values or values that are already known, the data resource will be read and its state updated during Terraform's "refresh" phase, which runs prior to creating a plan. This ensures that the retrieved data is available for use during planning and so Terraform's plan will show the actual values obtained.
+
+Data resources support count and for_each meta-arguments as defined for managed resources, with the same syntax and behavior.
+Data resources support the provider meta-argument as defined for managed resources, with the same syntax and behavior.
+Data resources do not currently have any customization settings available for their lifecycle, but the lifecycle nested block is reserved in case any are added in future versions.
+
+Each data instance will export one or more attributes, which can be used in other resources as reference expressions of the form data.<TYPE>.<NAME>.<ATTRIBUTE>. For example:
+
+```
+resource "aws_instance" "web" {
+  ami           = data.aws_ami.web.id
+  instance_type = "t1.micro"
+}
+```
 
 
+#### local data sources
+
+##### local_file
+local_file reads a file from the local filesystem.
+
+```
+data "local_file" "foo" {
+    filename = "${path.module}/foo.bar"
+}
+```
 
 
+##### template_file
+
+The template_file data source renders a template from a template string, which is usually loaded from an external file.
+```
+data "template_file" "init" {
+  template = "${file("${path.module}/init.tpl")}"
+  vars = {
+    consul_address = "${aws_instance.consul.private_ip}"
+  }
+}
+```
+Although in principle template_file can be used with an inline template string, we don't recommend this approach because it requires awkward escaping. Instead, just use template syntax directly in the configuration. For example:
+```
+  user_data = <<-EOT
+    echo "CONSUL_ADDRESS = ${aws_instance.consul.private_ip}" > /tmp/iplist
+  EOT
+```
+
+The following attributes are exported:
+- template - See Argument Reference above.
+- vars - See Argument Reference above.
+- rendered - The final rendered template.
 
 
+### Providers
 
+https://www.terraform.io/docs/language/providers/index.html
 
-
-
-
+################
 
 
 ## Terraform general considerations
