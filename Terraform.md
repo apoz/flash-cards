@@ -507,9 +507,360 @@ The following attributes are exported:
 
 ### Providers
 
-https://www.terraform.io/docs/language/providers/index.html
+Terraform relies on plugins called "providers" to interact with cloud providers, SaaS providers, and other APIs.
+
+Terraform configurations must declare which providers they require so that Terraform can install and use them. Additionally, some providers require configuration (like endpoint URLs or cloud regions) before they can be used.
+
+Each provider adds a set of resource types and/or data sources that Terraform can manage.
+
+#### Provider installation
+
+- Terraform Cloud and Terraform Enterprise install providers as part of every run.
+- Terraform CLI finds and installs providers when initializing a working directory. It can automatically download providers from a Terraform registry, or load them from a local mirror or cache. If you are using a persistent working directory, you must reinitialize whenever you change a configuration's providers. To save time and bandwidth, Terraform CLI supports an optional plugin cache. You can enable the cache using the plugin_cache_dir setting in the CLI configuration file.
+
+The dependency lock file is a file that belongs to the configuration as a whole, rather than to each separate module in the configuration. For that reason Terraform creates it and expects to find it in your current working directory when you run Terraform, which is also the directory containing the .tf files for the root module of your configuration.
+
+The lock file is always named `.terraform.lock.hcl`, and this name is intended to signify that it is a lock file for various items that Terraform caches in the .terraform subdirectory of your working directory.
+
+Terraform automatically creates or updates the dependency lock file each time you run the terraform init command. You should include this file in your version control repository so that you can discuss potential changes to your external dependencies via code review.
+
+When `terraform init` is working on installing all of the providers needed for a configuration, Terraform considers both the version constraints in the configuration and the version selections recorded in the lock file.
+
+If a particular provider has no existing recorded selection, Terraform will select the newest available version that matches the given version constraint, and then update the lock file to include that selection.
+
+If a particular provider already has a selection recorded in the lock file, Terraform will always re-select that version for installation, even if a newer version has become available. You can override that behavior by adding the -upgrade option when you run terraform init, in which case Terraform will disregard the existing selections and once again select the newest available version matching the version constraint.
+
+#### Provider requirements
+
+Each Terraform module must declare which providers it requires, so that Terraform can install and use them. Provider requirements are declared in a required_providers block.
+
+A provider requirement consists of a local name, a source location, and a version constraint:
+```
+terraform {
+  required_providers {
+    mycloud = {
+      source  = "mycorp/mycloud"
+      version = "~> 1.0"
+    }
+  }
+}
+```
+
+### Variables and Outputs
+
+#### Input variables
+
+Input variables serve as parameters for a Terraform module, allowing aspects of the module to be customized without altering the module's own source code, and allowing modules to be shared between different configurations.
+
+When you declare variables in the root module of your configuration, you can set their values using CLI options and environment variables. When you declare them in child modules, the calling module should pass values in the module block.
+
+
+```
+variable "image_id" {
+  type = string
+}
+
+variable "availability_zone_names" {
+  type    = list(string)
+  default = ["us-west-1a"]
+}
+
+variable "docker_ports" {
+  type = list(object({
+    internal = number
+    external = number
+    protocol = string
+  }))
+  default = [
+    {
+      internal = 8300
+      external = 8300
+      protocol = "tcp"
+    }
+  ]
+}
+```
+
+Parameters:
+
+- default - A default value which then makes the variable optional.
+- type - This argument specifies what value types are accepted for the variable.
+The type constructors allow you to specify complex types such as collections:
+  - string
+  - number
+  - bool
+  - list(<TYPE>)
+  - set(<TYPE>)
+  - map(<TYPE>)
+  - object({<ATTR NAME> = <TYPE>, ... })
+  - tuple([<TYPE>, ...])
+
+- description - This specifies the input variable's documentation.
+- validation - A block to define validation rules, usually in addition to type constraints.
+
+```
+variable "image_id" {
+  type        = string
+  description = "The id of the machine image (AMI) to use for the server."
+
+  validation {
+    condition     = length(var.image_id) > 4 && substr(var.image_id, 0, 4) == "ami-"
+    error_message = "The image_id value must be a valid AMI id, starting with \"ami-\"."
+  }
+}
+```
+- sensitive - Limits Terraform UI output when the variable is used in configuration.
+
+```
+variable "user_information" {
+  type = object({
+    name    = string
+    address = string
+  })
+  sensitive = true
+}
+
+resource "some_resource" "a" {
+  name    = var.user_information.name
+  address = var.user_information.address
+}
+
+```
+
+Terraform loads variables in the following order, with later sources taking precedence over earlier ones:
+- Environment variables
+- The terraform.tfvars file, if present.
+- The terraform.tfvars.json file, if present.
+- Any *.auto.tfvars or *.auto.tfvars.json files, processed in lexical order of their filenames.
+- Any -var and -var-file options on the command line, in the order they are provided. (This includes variables set by a Terraform Cloud workspace.)
+
+
+#### Output variables
+
+Output values are like the return values of a Terraform module, and have several uses:
+
+- A child module can use outputs to expose a subset of its resource attributes to a parent module.
+- A root module can use outputs to print certain values in the CLI output after running terraform apply.
+- When using remote state, root module outputs can be accessed by other configurations via a terraform_remote_state data source.
+
+```
+output "instance_ip_addr" {
+  value = aws_instance.server.private_ip
+}
+```
+
+In a parent module, outputs of child modules are available in expressions as module.`<MODULE NAME>.<OUTPUT NAME>`. For example, if a child module named web_server declared an output named instance_ip_addr, you could access that value as module.web_server.instance_ip_addr.
+
+#### local variables
+
+```
+locals {
+  service_name = "forum"
+  owner        = "Community Team"
+}
+
+
+# to use the local value
+resource "aws_instance" "example" {
+  # ...
+
+  tags = local.common_tags
+}
+
+
+```
+
+### Modules
+
+Modules are containers for multiple resources that are used together. A module consists of a collection of .tf and/or .tf.json files kept together in a directory.
+
+Modules are the main way to package and reuse resource configurations with Terraform.
+
+Every Terraform configuration has at least one module, known as its root module, which consists of the resources defined in the .tf files in the main working directory.
+
+A Terraform module (usually the root module of a configuration) can call other modules to include their resources into the configuration. A module that has been called by another module is often referred to as a child module.
+
+Child modules can be called multiple times within the same configuration, and multiple configurations can use the same child module.
+
+In addition to modules from the local filesystem, Terraform can load modules from a public or private registry. This makes it possible to publish modules for others to use, and to use modules that others have published.
+
+#### Module blocks
+
+To call a module means to include the contents of that module into the configuration with specific values for its input variables. Modules are called from within other modules using module blocks:
+
+```
+module "servers" {
+  source = "./app-cluster"
+
+  servers = 5
+}
+```
+
+The label immediately after the module keyword is a local name, which the calling module can use to refer to this instance of the module.
+
+##### Source
+
+All modules require a source argument, which is a meta-argument defined by Terraform. Its value is either the path to a local directory containing the module's configuration files, or a remote module source that Terraform should download and use. This value must be a literal string with no template sequences; arbitrary expressions are not allowed.
+
+The same source address can be specified in multiple module blocks to create multiple copies of the resources defined within, possibly with different variable values.
+
+After adding, removing, or modifying module blocks, you must re-run terraform init to allow Terraform the opportunity to adjust the installed modules. 
+
+##### Version
+
+The version argument accepts a version constraint string. Terraform will use the newest installed version of the module that meets the constraint; if no acceptable versions are installed, it will download the newest version that meets the constraint.
+
+##### Accessing module output values
+
+The resources defined in a module are encapsulated, so the calling module cannot access their attributes directly. However, the child module can declare output values to selectively export certain values to be accessed by the calling module.
+
+For example, if the ./app-cluster module referenced in the example above exported an output value named instance_ids then the calling module can reference that result using the expression module.servers.instance_ids:
+
+```
+resource "aws_elb" "example" {
+  # ...
+
+  instances = module.servers.instance_ids
+}
+```
+
+When refactoring an existing configuration to split code into child modules, moving resource blocks between modules causes Terraform to see the new location as an entirely different resource from the old. Always check the execution plan after moving code across modules to ensure that no resources are deleted by surprise.
+
+If you want to make sure an existing resource is preserved, use the terraform state mv command to inform Terraform that it has moved to a different module.
+
+When passing resource addresses to terraform state mv, resources within child modules must be prefixed with module.<MODULE NAME>.. If a module was called with count or for_each, its resource addresses must be prefixed with module.<MODULE NAME>[<INDEX>]. instead, where <INDEX> matches the count.index or each.key value of a particular module instance.
+
+The taint command can be used to taint specific resources within a module:
+```
+terraform taint module.salt_master.aws_instance.salt_master
+```
+It is not possible to taint an entire module. Instead, each resource within the module must be tainted separately.
+
+#### Module sources
+
+The source argument in a module block tells Terraform where to find the source code for the desired child module.
+
+Terraform uses this during the module installation step of terraform init to download the source code to a directory on local disk so that it can be used by other Terraform commands.
+
+Source types supported:
+- local paths: specified starting by `./` or `../`
+- terraform registry: format `<NAMESPACE>/<NAME>/<PROVIDER>`. Specify `<HOSTNAME>/` if the registry is NOT `registry.terraform.io`
+- github repos: `github.com/...` or `git@github.com:` (for ssh cloning)
+- bitbucket repos: `bitbucket.org/...`
+- git repo: `git::https://whatever.com/vpc.git` or `git::ssh://username@...`  `?ref=LOQUESEA` for a tag or branch.
+  scp-like address: `git::username@example.com:storage.git`
+- mercurial repo : `hg::http://...`
+- generic http server: terraform will make a GET with `terraform-get=1` to the URL and then look for the module in `X-Terraform-Get` header or in a `meta-element` with the name `terraform-get`.
+If the URL has a common file extension for modules(["zip","tar.bz2","tar.gz","tar.xz"]), it will download directly the file and use it as source code.
+- s3 bucket: `s3::https://...` it will look for aws credentiasl in `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` env variables, or `.aws/credentials` in your home dir.
+- cgs bucket: `cgs://`
+
+When the source of a module is a version control repository or archive file (generically, a "package"), the module itself may be in a sub-directory relative to the root of the package.
+
+A special double-slash syntax is interpreted by Terraform to indicate that the remaining path after that point is a sub-directory within the package. For example:
+
+```
+ hashicorp/consul/aws//modules/consul-cluster 
+```
+
+#### meta-arguments
+
+##### provider
+
+In a module call block, the optional providers meta-argument specifies which provider configurations from the parent module will be available inside the child module.
+
+```
+# The default "aws" configuration is used for AWS resources in the root
+# module where no explicit provider instance is selected.
+provider "aws" {
+  region = "us-west-1"
+}
+
+# An alternate configuration is also defined for a different
+# region, using the alias "usw2".
+provider "aws" {
+  alias  = "usw2"
+  region = "us-west-2"
+}
+
+# An example child module is instantiated with the alternate configuration,
+# so any AWS resources it defines will use the us-west-2 region.
+module "example" {
+  source    = "./example"
+  providers = {
+    aws = aws.usw2
+  }
+}
+```
+
+If the child module does not declare any configuration aliases, the providers argument is optional. If you omit it, a child module inherits all of the default provider configurations from its parent module. (Default provider configurations are ones that don't use the alias argument.)
+
+If you specify a providers argument, it cancels this default behavior, and the child module will only have access to the provider configurations you specify.
+
+The value of providers is a map, where:
+- The keys are the provider configuration names used inside the child module.
+- The values are provider configuration names from the parent module.
+
+There are two main reasons to use the providers argument:
+- Using different default provider configurations for a child module.
+- Configuring a module that requires multiple configurations of the same provider.
+
+##### depends_on
+
+Use the depends_on meta-argument to handle hidden resource or module dependencies that Terraform can't automatically infer.
+
+##### count
+
+count is a meta-argument defined by the Terraform language. It can be used with modules and with every resource type.
+
+The count meta-argument accepts numeric expressions. However, unlike most arguments, the count value must be known before Terraform performs any remote resource actions. This means count can't refer to any resource attributes that aren't known until after a configuration is applied (such as a unique ID generated by the remote API when an object is created).
+
+##### for_each
+
+The for_each meta-argument accepts a map or a set of strings, and creates an instance for each item in that map or set. Each instance has a distinct infrastructure object associated with it, and each is separately created, updated, or destroyed when the configuration is applied.
+
+The keys of the map (or all the values in the case of a set of strings) must be known values, or you will get an error message that for_each has dependencies that cannot be determined before apply, and a -target may be needed.
+
+for_each keys cannot be the result (or rely on the result of) of impure functions, including uuid, bcrypt, or timestamp, as their evaluation is deferred during the main evaluation step.
+
+The for_each meta-argument accepts map or set expressions. However, unlike most arguments, the for_each value must be known before Terraform performs any remote resource actions. This means for_each can't refer to any resource attributes that aren't known until after a configuration is applied (such as a unique ID generated by the remote API when an object is created).
+
+[flattening structs](https://www.terraform.io/docs/language/functions/flatten.html#flattening-nested-structures-for-for_each)
+
+#### module development
+
+##### standard module structure
+
+- Root module. This is the only required element for the standard module structure. Terraform files must exist in the root directory of the repository. This should be the primary entrypoint for the module and is expected to be opinionated.
+- README. The root module and any nested modules should have README files. 
+- LICENSE. The license under which this module is available.
+- `main.tf`, `variables.tf`, `outputs.tf`. These are the recommended filenames for a minimal module, even if they're empty. main.tf should be the primary entrypoint. For a complex module, resource creation may be split into multiple files but any nested module calls should be in the main file. variables.tf and outputs.tf should contain the declarations for variables and outputs, respectively.
+- Variables and outputs should have descriptions. All variables and outputs should have one or two sentence descriptions that explain their purpose.
+-  Nested modules. Nested modules should exist under the modules/ subdirectory. Any nested module with a README.md is considered usable by an external user. If a README doesn't exist, it is considered for internal use only. 
+
+##### providers inside modules
+
+Alternative configurations can be used with the `configuration_aliases` param:
+```
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 2.7.0"
+      configuration_aliases = [ aws.alternate ]
+    }
+  }
+}
+
+```
+### Expressions
+
+https://www.terraform.io/docs/language/expressions/index.html
 
 ################
+
+
+
 
 
 ## Terraform general considerations
@@ -821,6 +1172,12 @@ terraform plan -var "server_port=8080"
 variable_name=value
 ```
 If the file is called something else, the specific vars file has to be specified with a -var-file="filename".
+
+Terraform also automatically loads a number of variable definitions files if they are present:
+
+    Files named exactly terraform.tfvars or terraform.tfvars.json.
+    Any files with names ending in .auto.tfvars or .auto.tfvars.json.
+
 
 3 - Environment variable - part of your shell environment
 4 - Default config - default value in variables.tf
@@ -1370,13 +1727,17 @@ Terraform allows us to have multiple workspaces, with each of the workspaces we 
 ```
 terraform workspace show  # shows current one
 terraform workspace list  # shows available workspaces
-terraform workspace new dev # creates dev workspace
+terraform workspace new dev # creates dev workspace and switched into
 terraform workspace select prd # select 
 
 ```
 
 You can create a map with a default
 the variable is terraform_workspace
+
+The state file directory is `terraform.tfstate.d`
+
+They DON'T provide high isolation between environments.
 
 we can use a lookup function
 
@@ -1398,6 +1759,8 @@ variable "instance_type" {
   }
 }
 
+#Then to access the value you can use:
+var.instance_type["dev"]
 ```
 
 
@@ -1609,6 +1972,8 @@ It will NOT modify things in infrastructure.
 Terraform performs a refresh, unless explicitly disabled, and then determines what actions are necessary to achieve the desired state specified in the configuration files.
 This command is a convenient way to check whether the execution plan for a set of changes matches your expectations without making any changes to real resources or to the state.
 
+You can use `terraform plan -destroy`to preview the behaviour of a terraform destroy command.
+
 ##### Apply
 It's used to apply the changes required to reach the desired state of the configuration.
 Terraform apply will also write data to the terraform.tfstate fole.
@@ -1619,6 +1984,9 @@ Once apply is completed, the resources are immediately available.
 Command used to reconcile the state terraforms knows about with the real-world infrastructure.
 
 This does NOT modify infrastructure but the state file.
+
+Some commands run terraform refresh implicitly, like plan, destroy, apply.
+Some others don't as init or import.
 
 ##### Destroy
 
@@ -1670,6 +2038,8 @@ terraform import aws_instance.myec2 instance-id
  - list: sequential list of values identified by their position. Starting by 0.
  - map: group of values identified by named labels
  - number: integer
+
+Array IS NOT SUPOPRTED
 
  ##### Workspaces
 Each of the workspaces can have a different set of environment variables associated.
