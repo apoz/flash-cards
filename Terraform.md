@@ -855,8 +855,217 @@ terraform {
 ```
 ### Expressions
 
-https://www.terraform.io/docs/language/expressions/index.html
+#### Types and values
 
+The Terraform language uses the following types for its values:
+
+- string: a sequence of Unicode characters representing some text, like "hello".
+- number: a numeric value. The number type can represent both whole numbers like 15 and fractional values like 6.283185.
+- bool: a boolean value, either true or false. bool values can be used in conditional logic.
+- list (or tuple): a sequence of values, like ["us-west-1a", "us-west-1c"]. Elements in a list or tuple are identified by consecutive whole numbers, starting with zero.
+- map (or object): a group of values identified by named labels, like {name = "Mabel", age = 52}.
+
+Strings, numbers, and bools are sometimes called primitive types. Lists/tuples and maps/objects are sometimes called complex types, structural types, or collection types.
+
+- null: a value that represents absence or omission. If you set an argument of a resource or module to null, Terraform behaves as though you had completely omitted it
+
+##### Literal expresions
+
+- **Lists/Tuples**
+Lists/tuples are represented by a pair of square brackets containing a comma-separated sequence of values, like ["a", 15, true].
+
+List literals can be split into multiple lines for readability, but always require a comma between values. A comma after the final value is allowed, but not required. Values in a list can be arbitrary expressions.
+
+- **Maps/Objects**
+Maps/objects are represented by a pair of curly braces containing a series of <KEY> = <VALUE> pairs:
+```
+{
+  name = "John"
+  age  = 52
+}
+```
+Key/value pairs can be separated by either a comma or a line break.
+
+The values in a map can be arbitrary expressions.
+
+The keys in a map must be strings; they can be left unquoted if they are a valid identifier, but must be quoted otherwise. You can use a non-literal string expression as a key by wrapping it in parentheses, like (var.business_unit_tag_name) = "SRE".
+
+Where possible, Terraform automatically converts values from one type to another in order to produce the expected type. If this isn't possible, Terraform will produce a type mismatch error and you must update the configuration with a more suitable expression.
+
+Terraform automatically converts number and bool values to strings when needed. It also converts strings to numbers or bools, as long as the string contains a valid representation of a number or bool value.
+
+
+##### Strings and Templates
+Sequence 	Replacement
+$${ 	Literal ${, without beginning an interpolation sequence.
+%%{ 	Literal %{, without beginning a template directive sequence.
+
+**Heredoc** strings
+
+```
+<<EOT
+hello
+world
+EOT
+```
+To improve on this, Terraform also accepts an indented heredoc string variant that is introduced by the <<- sequence, that removes extra indentation.
+
+Don't use "heredoc" strings to generate JSON or YAML. Instead, use the jsonencode function or the yamlencode function so that Terraform can be responsible for guaranteeing valid JSON or YAML syntax.
+```
+  example = jsonencode({
+    a = 1
+    b = "hello"
+  })
+```
+
+- **Interpolation**
+A ${ ... } sequence is an interpolation, which evaluates the expression given between the markers, converts the result to a string if necessary, and then inserts it into the final string:
+```
+"Hello, ${var.name}!"
+```
+In the above example, the named object var.name is accessed and its value inserted into the string, producing a result like "Hello, Juan!".
+
+- **Directives**
+A %{ ... } sequence is a directive, which allows for conditional results and iteration over collections, similar to conditional and for expressions.
+
+The following directives are supported:
+
+- The %{if <BOOL>}/%{else}/%{endif} directive chooses between two templates based on the value of a bool expression:
+```
+ "Hello, %{ if var.name != "" }${var.name}%{ else }unnamed%{ endif }!"
+```
+The else portion may be omitted, in which case the result is an empty string if the condition expression returns false.
+
+- The %{for <NAME> in <COLLECTION>} / %{endfor} directive iterates over the elements of a given collection or structural value and evaluates a given template once for each element, concatenating the results together:
+```
+    <<EOT
+    %{ for ip in aws_instance.example.*.private_ip }
+    server ${ip}
+    %{ endfor }
+    EOT
+```
+
+The name given immediately after the for keyword is used as a temporary variable name which can then be referenced from the nested template.
+
+To allow template directives to be formatted for readability without adding unwanted spaces and newlines to the result, all template sequences can include optional strip markers (~), immediately after the opening characters or immediately before the end. When a strip marker is present, the template sequence consumes all of the literal whitespace (spaces and newlines) either before the sequence (if the marker appears at the beginning) or after (if the marker appears at the end):
+
+```
+<<EOT
+%{ for ip in aws_instance.example.*.private_ip ~}
+server ${ip}
+%{ endfor ~}
+EOT
+```
+
+##### References to named values
+
+The main kinds of named values available in Terraform are:
+
+- **Resources**
+
+`<RESOURCE TYPE>.<NAME>` represents a managed resource of the given type and name.
+
+
+- If the resource doesn't use count or for_each, the reference's value is an object. The resource's attributes are elements of the object, and you can access them using dot or square bracket notation.
+- If the resource has the count argument set, the reference's value is a list of objects representing its instances.
+- If the resource has the for_each argument set, the reference's value is a map of objects representing its instances.
+
+
+- **Input variables**
+
+
+`var.<NAME>` is the value of the input variable of the given name.
+
+- **Local values**
+
+`local.<NAME>` is the value of the local value of the given name.`
+
+Local values can refer to other local values, even within the same locals block, as long as you don't introduce circular dependencies.
+
+- **Child module outputs**
+
+`module.<MODULE NAME>` is an value representing the results of a module block.
+
+If the corresponding module block does not have either count nor for_each set then the value will be an object with one attribute for each output value defined in the child module. To access one of the module's output values, use `module.<MODULE NAME>.<OUTPUT NAME>`.
+
+If the corresponding module uses for_each then the value will be a map of objects whose keys correspond with the keys in the for_each expression, and whose values are each objects with one attribute for each output value defined in the child module, each representing one module instance.
+
+If the corresponding module uses count then the result is similar to for for_each except that the value is a list with the requested number of elements, each one representing one module instance.
+
+- **Data sources**
+`data.<DATA TYPE>.<NAME>` is an object representing a data resource of the given data source type and name.
+If the resource has the count argument set, the value is a list of objects representing its instances. If the resource has the for_each argument set, the value is a map of objects representing its instances.
+
+- **Filesystem and workspace info**
+
+  - *path.module* is the filesystem path of the module where the expression is placed.
+  - *path.root* is the filesystem path of the root module of the configuration.
+  - *path.cwd* is the filesystem path of the current working directory. In normal use of Terraform this is the same as path.root, but some advanced uses of Terraform run it from a directory other than the root module directory, causing these paths to be different.
+  - *terraform.workspace* is the name of the currently selected workspace. 
+
+
+
+Use the values in this section carefully, because they include information about the context in which a configuration is being applied and so may inadvertently hurt the portability or composability of a module.
+
+For example, if you use path.cwd directly to populate a path into a resource argument then later applying the same configuration from a different directory or on a different computer with a different directory structure will cause the provider to consider the change of path to be a change to be applied, even if the path still refers to the same file.
+
+- **Block-local values**
+
+Within the bodies of certain blocks, or in some other specific contexts, there are other named values available beyond the global values listed above. These local names are described in the documentation for the specific contexts where they appear. Some of most common local names are:
+
+- count.index, in resources that use the count meta-argument.
+- each.key / each.value, in resources that use the for_each meta-argument.
+- self, in provisioner and connection blocks.
+
+
+##### Operators
+
+When multiple operators are used together in an expression, they are evaluated in the following order of operations:
+
+1. `!, - (multiplication by -1)`
+2. `*, /, %`
+3. `+, - (subtraction)`
+4. `>, >=, <, <=`
+5. `==, !=`
+6. `&&`
+7. `||`
+
+The arithmetic operators all expect number values and produce number values as results:
+
+-  a + b returns the result of adding a and b together.
+-  a - b returns the result of subtracting b from a.
+-  a * b returns the result of multiplying a and b.
+-  a / b returns the result of dividing a by b.
+-  a % b returns the remainder of dividing a by b. This operator is generally useful only when used with whole numbers.
+-  -a returns the result of multiplying a by -1.
+
+Terraform supports some other less-common numeric operations as functions. For example, you can calculate exponents using the pow function.
+
+The equality operators both take two values of any type and produce boolean values as results.
+
+- a == b returns true if a and b both have the same type and the same value, or false otherwise.
+- a != b is the opposite of a == b.
+
+The comparison operators all expect number values and produce boolean values as results.
+
+- a < b returns true if a is less than b, or false otherwise.
+- a <= b returns true if a is less than or equal to b, or false otherwise.
+- a > b returns true if a is greater than b, or false otherwise.
+- a >= b returns true if a is greater than or equal to b, or false otherwise.
+
+The logical operators all expect bool values and produce bool values as results.
+
+- a || b returns true if either a or b is true, or false if both are false.
+- a && b returns true if both a and b are true, or false if either one is false.
+- !a returns true if a is false, and false if a is true.
+
+Terraform does not have an operator for the "exclusive OR" operation. If you know that both operators are boolean values then exclusive OR is equivalent to the != ("not equal") operator.
+
+
+
+##### Functions
+
+https://www.terraform.io/docs/language/expressions/function-calls.html
 ################
 
 
