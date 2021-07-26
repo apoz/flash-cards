@@ -1063,9 +1063,271 @@ Terraform does not have an operator for the "exclusive OR" operation. If you kno
 
 
 
-##### Functions
+##### Function calls
 
-https://www.terraform.io/docs/language/expressions/function-calls.html
+The Terraform language has a number of built-in functions that can be used in expressions to transform and combine values. These are similar to the operators but all follow a common syntax:
+
+```
+<FUNCTION NAME>(<ARGUMENT 1>, <ARGUMENT 2>)
+```
+
+f the arguments to pass to a function are available in a list or tuple value, that value can be expanded into separate arguments. Provide the list value as an argument and follow it with the ... symbol:
+
+```
+min([55, 2453, 2]...)
+```
+
+When using sensitive data, such as an input variable or an output defined as sensitive as function arguments, the result of the function call will be marked as sensitive.
+
+```
+> local.baz
+{
+  "a" = (sensitive)
+  "b" = "dog"
+}
+> keys(local.baz)
+(sensitive)
+
+```
+###### Special functions
+
+A small subset of functions interact with outside state and so for those it can be helpful to know when Terraform will call them in relation to other events that occur in a Terraform run.
+
+- **file** or **templatefile** functions are intended for reading files that are included as a static part of the configuration and so Terraform will execute these functions as part of initial configuration validation, before taking any other actions with the configuration. That means you cannot use either function to read files that your configuration might generate dynamically on disk as part of the plan or apply steps.
+- **timestamp** functions return a representation of the current system type at the point where Terraform calls it.
+- **uuid** function returns a random result which differs on each call. W
+
+Without any special behavior these would would both cause the final configuration during the apply step not to match the actions shown in the plan, which violates the Terraform execution model.
+
+For that reason, Terraform arranges for both of those functions to produce unknown value results during the plan step, with the real result being decided only during the apply step. 
+
+##### Conditional expressions
+
+A conditional expression uses the value of a bool expression to select one of two values.
+
+```
+condition ? true_val : false_val
+```
+
+The two result values may be of any type, but they must both be of the same type so that Terraform can determine what type the whole conditional expression will return without knowing the condition value.
+
+
+##### For expressions
+
+A for expression creates a complex type value by transforming another complex type value. Each element in the input value can correspond to either one or zero values in the result, and an arbitrary expression can be used to transform each input element into an output element.
+
+```
+[for s in var.list : upper(s)]
+```
+
+A for expression's input (given after the in keyword) can be a list, a set, a tuple, a map, or an object.
+
+```
+[for k, v in var.map : length(k) + length(v)]
+# or with a list
+[for i, v in var.list : "${i} is ${v}"]
+```
+
+The type of brackets around the for expression decide what type of result it produces.
+
+The above example uses [ and ], which produces a tuple. If you use { and } instead, the result is an object and you must provide two result expressions that are separated by the => symbol:
+
+
+```
+{for s in var.list : s => upper(s)}
+
+#
+{
+  foo = "FOO"
+  bar = "BAR"
+  baz = "BAZ"
+}
+
+```
+A for expression alone can only produce either an object value or a tuple value, but Terraform's automatic type conversion rules mean that you can typically use the results in locations where lists, maps, and sets are expected.
+
+A for expression can also include an optional if clause to filter elements from the source collection, producing a value with fewer elements than the source value:
+
+```
+[for s in var.list : upper(s) if s != ""]
+```
+
+If the result type is an object (using { and } delimiters) then normally the given key expression must be unique across all elements in the result, or Terraform will return an error.
+
+Sometimes the resulting keys are not unique, and so to support that situation Terraform supports a special grouping mode which changes the result to support multiple elements per key.
+
+To activate grouping mode, add the symbol ... after the value expression. For example:
+
+```
+variable "users" {
+  type = map(object({
+    role = string
+  }))
+}
+
+locals {
+  users_by_role = {
+    for name, user in var.users : user.role => name...
+  }
+}
+```
+
+```
+{
+  "admin": [
+    "ps",
+  ],
+  "maintainer": [
+    "am",
+    "jb",
+    "kl",
+    "ma",
+  ],
+  "viewer": [
+    "st",
+    "zq",
+  ],
+}
+```
+
+##### Splat expressions
+
+A splat expression provides a more concise way to express a common operation that could otherwise be performed with a for expression.
+
+
+```
+[for o in var.list : o.id]
+
+# = 
+var.list[*].id
+```
+
+The splat expression patterns shown above apply only to lists, sets, and tuples. To get a similar result with a map or object value you must use for expressions.
+
+Resources that use the for_each argument will appear in expressions as a map of objects, so you can't use splat expressions with those resources. 
+
+
+
+##### Dynamic blocks
+
+A dynamic block acts much like a for expression, but produces nested blocks instead of a complex typed value. It iterates over a given complex value, and generates a nested block for each element of that complex value.
+
+- The label of the dynamic block ("setting" in the example above) specifies what kind of nested block to generate.
+- The for_each argument provides the complex value to iterate over.
+- The iterator argument (optional) sets the name of a temporary variable that represents the current element of the complex value. If omitted, the name of the variable defaults to the label of the dynamic block ("setting" in the example above).
+- The labels argument (optional) is a list of strings that specifies the block labels, in order, to use for each generated block. You can use the temporary iterator variable in this value.
+- The nested content block defines the body of each generated block. You can use the temporary iterator variable inside this block.
+
+ince the for_each argument accepts any collection or structural value, you can use a for expression or splat expression to transform an existing collection.
+
+The iterator object (setting in the example above) has two attributes:
+
+- key is the map key or list element index for the current element. If the for_each expression produces a set value then key is identical to value and should not be used.
+- value is the value of the current element.
+
+A dynamic block can only generate arguments that belong to the resource type, data source, provider or provisioner being configured. It is not possible to generate meta-argument blocks such as lifecycle and provisioner blocks, since Terraform must process these before it is safe to evaluate expressions.
+
+##### Type constraints
+
+Terraform module authors and provider developers can use detailed type constraints to validate user-provided values for their input variables and resource arguments. 
+
+###### Primitive types
+- **string**: a sequence of unicode characters representing some text.
+- **number**: a numeric value.
+- **bool**: true or false
+
+The Terraform language will automatically convert number and bool values to string values when needed, and vice-versa as long as the string contains a valid representation of a number or boolean value.
+
+###### Complex types
+
+- **Collection types**
+A collection type allows multiple values of one other type to be grouped together as a single value. 
+
+The three kinds of collection type in the Terraform language are:
+
+  - list(...): a sequence of values identified by consecutive whole numbers starting with zero. The keyword list is a shorthand for list(any), which accepts any element type as long as every element is the same type. This is for compatibility with older configurations; for new code, we recommend using the full form.
+
+  - map(...): a collection of values where each is identified by a string label. The keyword map is a shorthand for map(any), which accepts any element type as long as every element is the same type. This is for compatibility with older configurations; for new code, we recommend using the full form.
+
+    Maps can be made with braces ({}) and colons (:) or equals signs (=): { "foo": "bar", "bar": "baz" } OR { foo = "bar", bar = "baz" }. Quotes may be omitted on keys, unless the key starts with a number, in which case quotes are required. Commas are required between key/value pairs for single line maps. A newline between key/value pairs is sufficient in multi-line maps.
+
+    Note: although colons are valid delimiters between keys and values, they are currently ignored by terraform fmt (whereas terraform fmt will attempt vertically align equals signs).
+
+  - set(...): a collection of unique values that do not have any secondary identifiers or ordering.
+
+- **Structural types**
+
+  - object(...): a collection of named attributes that each have their own type.
+
+    The schema for object types is { <KEY> = <TYPE>, <KEY> = <TYPE>, ... } — a pair of curly braces containing a comma-separated series of <KEY> = <TYPE> pairs. Values that match the object type must contain all of the specified keys, and the value for each key must match its specified type. (Values with additional keys can still match an object type, but the extra attributes are discarded during type conversion.)
+
+  - tuple(...): a sequence of elements identified by consecutive whole numbers starting with zero, where each element has its own type.
+
+    The schema for tuple types is [<TYPE>, <TYPE>, ...] — a pair of square brackets containing a comma-separated series of types. Values that match the tuple type must have exactly the same number of elements (no more and no fewer), and the value in each position must match the specified type for that position.
+
+
+
+##### Version constraints
+
+- = (or no operator): Allows only one exact version number. Cannot be combined with other conditions.
+
+- !=: Excludes an exact version number.
+
+- >, >=, <, <=: Comparisons against a specified version, allowing versions for which the comparison is true. "Greater-than" requests newer versions, and "less-than" requests older versions.
+
+- ~>: Allows only the rightmost version component to increment. For example, to allow new patch releases within a specific minor release, use the full version number: ~> 1.0.4 will allow installation of 1.0.5 and 1.0.10 but not 1.1.0. This is usually called the pessimistic constraint operator.
+
+
+
+
+### Functions
+
+#### Numeric functions
+
+- **abs**:
+- **ceil**:
+- **floor**:
+- **log**:
+- **max**:
+- **min**:
+- **parseint**:
+- **pow**:
+- **signum**:
+
+#### String functions
+
+- **chomp**:
+- **format**:  `format("Hello, %s!", "Ander")`
+- **formatlist**:  `format("Hello, %s!", ["Ander","Lisa", "Bart"])`
+- **indent**: indent adds a given number of spaces to the beginnings of all but the first line in a given multi-line string.
+- **join**: `join(separator, list)`
+- **lower**: lower converts all cased letters in the given string to lowercase.
+- **regex**:
+- **regexall**:
+- **replace**:
+- **split**:
+- **strrev**: strrev reverses the characters in a string.
+- **substr**: substr extracts a substring from a given string by offset and length.
+- **title**: title converts the first letter of each word in the given string to uppercase.
+- **trim**: trim removes the specified characters from the start and end of the given string.
+- **trimprefix**:
+- **trimsuffix**:
+- **trimspace**:
+- **upper**:
+
+#### Filesystem functions
+
+- **abspath** takes a string containing a filesystem path and converts it to an absolute path. That is, if the path is not absolute, it will be joined with the current working directory.
+- **file** reads the contents of a file at the given path and returns them as a string.
+- **fileexists**
+- **templatefile**  reads the file at the given path and renders its content as a template using a supplied set of template variables.
+
+
+
+
+### Terraform settings
+https://www.terraform.io/docs/language/settings/index.html
+
 ################
 
 
