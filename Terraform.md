@@ -1639,11 +1639,19 @@ A destroy behaves exactly like deleting every resource from the configuration an
 
 ### Authentication
 
-https://www.terraform.io/docs/cli/auth/index.html
+Commands to authenticate with terraform cloud/enterprise
+```
+terraform login
+terraform logout
+```
 
 
-https://www.terraform.io/docs/cli/index.html
 
+ # Terraform study guide
+
+ https://learn.hashicorp.com/tutorials/terraform/associate-study?in=terraform/certification
+
+ 
 
 
 
