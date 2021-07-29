@@ -1326,7 +1326,332 @@ The three kinds of collection type in the Terraform language are:
 
 
 ### Terraform settings
-https://www.terraform.io/docs/language/settings/index.html
+
+Terraform settings are gathered together into terraform blocks:
+
+´´´
+terraform {
+  # ...
+}
+´´´
+
+- **required_version** specifies which versions of Terraform can be used with your configuration.
+- **required_providers** specifies all of the providers required by the current module mapping each local provider name ot a source address and a version constraint.
+
+```
+terraform {
+  required_providers {
+    aws = {
+      version = ">= 2.7.0"
+      source = "hashicorp/aws"
+    }
+  }
+}
+```
+
+- **experiments** The Terraform team will sometimes introduce new language features initially via an opt-in experiment, so that the community can try the new feature and give feedback on it prior to it becoming a backward-compatibility constraint.
+
+- **backend** Backend configuration.
+
+```
+terraform {
+  backend "remote" {
+    organization = "example_corp"
+
+    workspaces {
+      name = "my-app-prod"
+    }
+  }
+}
+
+```
+
+#### Terraform backends
+
+There are some important limitations on backend configuration:
+- A configuration can only provide one backend block.
+- A backend block cannot refer to named values (like input variables, locals, or data source attributes).
+
+Whenever a configuration's backend changes, you must run terraform init again to validate and configure the backend before you can perform any plans, applies, or state operations.
+
+Terraform's backends are divided into two main types, according to how they handle state and operations:
+
+- Enhanced backends can both store state and perform operations. There are only two enhanced backends: local and remote.
+- Standard backends only store state, and rely on the local backend for performing operations.
+
+
+##### Default backend
+
+If a configuration includes no backend block, Terraform defaults to using the local backend, which performs operations on the local system and stores state as a plain file in the current working directory.
+
+##### Partial configuration
+
+You do not need to specify every required argument in the backend configuration. Omitting certain arguments may be desirable if some arguments are provided automatically by an automation script running Terraform. 
+
+
+- *File*: A configuration file may be specified via the init command line. To specify a file, use the -backend-config=PATH option when running terraform init. If the file contains secrets it may be kept in a secure data store, such as Vault, in which case it must be downloaded to the local disk before running Terraform.
+- *Command-line key/value pairs*: Key/value pairs can be specified via the init command line. Note that many shells retain command-line flags in a history file, so this isn't recommended for secrets. To specify a single key/value pair, use the -backend-config="KEY=VALUE" option when running terraform init.
+- *Interactively*: Terraform will interactively ask you for the required values, unless interactive input is disabled. Terraform will not prompt for optional values.
+
+
+##### Configuration changes
+
+You can change your backend configuration at any time. You can change both the configuration itself as well as the type of backend (for example from "consul" to "s3").
+
+Terraform will automatically detect any changes in your configuration and request a reinitialization. As part of the reinitialization process, Terraform will ask if you'd like to migrate your existing state to the new configuration. This allows you to easily switch from one backend to another.
+
+If you're using multiple workspaces, Terraform can copy all workspaces to the destination. If Terraform detects you have multiple workspaces, it will ask if this is what you want to do.
+
+
+
+#### Enhanced backends: local
+
+Example config
+```
+terraform {
+  backend "local" {
+    path = "relative/path/to/terraform.tfstate"
+  }
+}
+```
+
+Data source configuration
+```
+data "terraform_remote_state" "foo" {
+  backend = "local"
+
+  config = {
+    path = "${path.module}/../../terraform.tfstate"
+  }
+}
+```
+
+#### Enhanced backends: remote
+
+
+The remote backend stores Terraform state and may be used to run operations in Terraform Cloud.
+
+When using full remote operations, operations like terraform plan or terraform apply can be executed in Terraform Cloud's run environment, with log output streaming to the local terminal. Remote plans and applies use variable values from the associated Terraform Cloud workspace.
+
+Terraform Cloud can also be used with local operations, in which case only state is stored in the Terraform Cloud backend.
+
+```
+# Using a single workspace:
+terraform {
+  backend "remote" {
+    hostname = "app.terraform.io"
+    organization = "company"
+
+    workspaces {
+      name = "my-app-prod"
+    }
+  }
+}
+
+# Using multiple workspaces:
+terraform {
+  backend "remote" {
+    hostname = "app.terraform.io"
+    organization = "company"
+
+    workspaces {
+      prefix = "my-app-"
+    }
+  }
+}
+
+```
+
+Datasource
+```
+data "terraform_remote_state" "foo" {
+  backend = "remote"
+
+  config = {
+    organization = "company"
+
+    workspaces = {
+      name = "workspace"
+    }
+  }
+}
+```
+
+#### State
+
+Terraform must store state about your managed infrastructure and configuration. This state is used by Terraform to map real world resources to your configuration, keep track of metadata, and to improve performance for large infrastructures.
+
+This state is stored by default in a local file named "terraform.tfstate", but it can also be stored remotely, which works better in a team environment.
+
+State is a necessary requirement for Terraform to function.
+Alongside the mappings between resources and remote objects, Terraform must also track metadata such as resource dependencies.
+
+Terraform typically uses the configuration to determine dependency order. However, when you delete a resource from a Terraform configuration, Terraform must know how to delete that resource. Terraform can see that a mapping exists for a resource not in your configuration and plan to destroy. However, since the configuration no longer exists, the order cannot be determined from the configuration alone.
+
+To ensure correct operation, Terraform retains a copy of the most recent set of dependencies within the state. Now Terraform can still determine the correct order for destruction from the state when you delete one or more items from the configuration.
+
+In addition to basic mapping, Terraform stores a cache of the attribute values for all resources in the state. This is the most optional feature of Terraform state and is done only as a performance improvement.
+
+For larger infrastructures, querying every resource is too slow. Many cloud providers do not provide APIs to query multiple resources at once, and the round trip time for each resource is hundreds of milliseconds. On top of this, cloud providers almost always have API rate limiting so Terraform can only request a certain number of resources in a period of time. Larger users of Terraform make heavy use of the -refresh=false flag as well as the -target flag in order to work around this. In these scenarios, the cached state is treated as the record of truth.
+
+
+##### Remote State datasource
+
+The terraform_remote_state data source retrieves the root module output values from some other Terraform configuration, using the latest state snapshot from the remote backend.
+This data source is built into Terraform, and is always available; you do not need to require or configure a provider in order to use it.
+
+Sharing data with root module outputs is convenient, but it has drawbacks. Although terraform_remote_state only exposes output values, its user must have access to the entire state snapshot, which often includes some sensitive information.
+
+When possible, we recommend explicitly publishing data for external consumption to a separate location instead of accessing it via remote state. This lets you apply different access controls for shared information and state snapshots.
+
+A key advantage of using a separate explicit configuration store instead of terraform_remote_state is that the data can potentially also be read by systems other than Terraform, such as configuration management or scheduler systems within your compute instances. For that reason, we recommend selecting a configuration store that your other infrastructure could potentially make use of. For example:
+
+- If you wish to share IP addresses and hostnames, you could publish them as normal DNS A, AAAA, CNAME, and SRV records in a private DNS zone and then configure your other infrastructure to refer to that zone so you can find infrastructure objects via your system's built-in DNS resolver.
+- If you use HashiCorp Consul then publishing data to the Consul key/value store or Consul service catalog can make that data also accessible via Consul Template or the HashiCorp Nomad template stanza.
+- If you use Kubernetes then you can make Config Maps available to your Pods.
+
+Argument reference:
+- **backend**
+- **workspace**
+- **config**
+
+Attributes reference:
+- (v0.12+) outputs - An object containing every root-level output in the remote state.
+- (<= v0.11) <OUTPUT NAME> - Each root-level output in the remote state appears as a top level attribute on the data source.
+
+```
+data "terraform_remote_state" "vpc" {
+  backend = "remote"
+
+  config = {
+    organization = "hashicorp"
+    workspaces = {
+      name = "vpc-prod"
+    }
+  }
+}
+
+# Terraform >= 0.12
+resource "aws_instance" "foo" {
+  # ...
+  subnet_id = data.terraform_remote_state.vpc.outputs.subnet_id
+}
+
+# Terraform <= 0.11
+resource "aws_instance" "foo" {
+  # ...
+  subnet_id = "${data.terraform_remote_state.vpc.subnet_id}"
+}
+
+```
+
+Only the root-level output values from the remote state snapshot are exposed for use elsewhere in your module. Resource data and output values from nested modules are not accessible.
+
+If you wish to make a nested module output value accessible as a root module output value, you must explicitly configure a passthrough in the root module.
+
+
+##### State storage and Locking
+
+Backends are responsible for storing state and providing an API for state locking. State locking is optional.
+
+Backends determine where state is stored. For example, the local (default) backend stores state in a local JSON file on disk. The Consul backend stores the state within Consul. Both of these backends happen to provide locking: local via system APIs and Consul via locking APIs.
+When using a non-local backend, Terraform will not persist the state anywhere on disk except in the case of a non-recoverable error where writing the state to the backend failed. This behavior is a major benefit for backends: if sensitive values are in your state, using a remote backend allows you to use Terraform without that state ever being persisted to disk.
+
+
+You can still manually retrieve the state from the remote state using the `terraform state pull` command. This will load your remote state and output it to stdout. You can choose to save that to a file or perform any other operations.
+
+You can also manually write state with `terraform state push`. This is *extremely dangerous* and should be avoided if possible. This will overwrite the remote state. This can be used to do manual fixups if necessary.
+
+##### Locking
+
+If supported by your backend, Terraform will lock your state for all operations that could write state. This prevents others from acquiring the lock and potentially corrupting your state.
+
+State locking happens automatically on all operations that could write state. You won't see any message that it is happening. If state locking fails, Terraform will not continue. You can disable state locking for most commands with the -lock flag but it is not recommended.
+
+To protect you, the force-unlock command requires a unique lock ID. Terraform will output this lock ID if unlocking fails. This lock ID acts as a nonce, ensuring that locks and unlocks target the correct lock.
+
+
+
+
+
+
+
+## Terraform CLI
+
+
+
+
+The usual way to run Terraform is to first switch to the directory containing the .tf files for your root module (for example, using the cd command), so that Terraform will find those files automatically without any extra arguments.
+
+In some cases though — particularly when wrapping Terraform in automation scripts — it can be convenient to run Terraform from a different directory than the root module directory. To allow that, Terraform supports a global option -chdir=... which you can include before the name of the subcommand you intend to run:
+
+```
+terraform -chdir=environments/production apply
+
+```
+
+
+### Initializing working directories
+
+Terraform expects to be invoked from a working directory that contains configuration files written in the Terraform language. Terraform uses configuration content from this directory, and also uses the directory to store settings, cached plugins and modules, and sometimes state data.
+
+A Terraform working directory typically contains:
+- A Terraform configuration describing resources Terraform should manage. This configuration is expected to change over time.
+- A hidden .terraform directory, which Terraform uses to manage cached provider plugins and modules, record which workspace is currently active, and record the last known backend configuration in case it needs to migrate state on the next run. This directory is automatically managed by Terraform, and is created during initialization.
+- State data, if the configuration uses the default local backend. This is managed by Terraform in a terraform.tfstate file (if the directory only uses the default workspace) or a terraform.tfstate.d directory (if the directory uses multiple workspaces).
+
+
+Run the terraform init command to initialize a working directory that contains a Terraform configuration. After initialization, you will be able to perform other commands, like terraform plan and terraform apply.
+Initialization performs several tasks to prepare a directory, including accessing state in the configured backend, downloading and installing provider plugins, and downloading modules. 
+In fact, you can reinitialize at any time; the init command is idempotent, and will have no effect if no changes are required.
+
+After successful installation, Terraform writes information about the selected providers to the dependency lock file. You should commit this file to your version control system to ensure that when you run terraform init again in future Terraform will select exactly the same provider versions. Use the -upgrade option if you want Terraform to ignore the dependency lock file and consider installing newer versions.
+
+
+The `terraform get` command is used to download and update modules mentioned in the root module.
+
+### Provisioning Infrastructure with Terraform
+
+Terraform's primary function is to create, modify, and destroy infrastructure resources to match the desired state described in a Terraform configuration.
+
+#### planning
+
+The terraform plan command evaluates a Terraform configuration to determine the desired state of all the resources it declares, then compares that desired state to the real infrastructure objects being managed with the current working directory and workspace. It uses state data to determine which real objects correspond to which declared resources, and checks the current state of each resource using the relevant infrastructure provider's API.
+
+The terraform plan command creates an execution plan. By default, creating a plan consists of:
+
+- Reading the current state of any already-existing remote objects to make sure that the Terraform state is up-to-date.
+- Comparing the current configuration to the prior state and noting any differences.
+- Proposing a set of change actions that should, if applied, make the remote objects match the configuration.
+
+The plan command alone will not actually carry out the proposed changes, and so you can use this command to check whether the proposed changes match what you expected before you apply the changes or share your changes with your team for broader review.
+
+
+#### apply
+
+The terraform apply command performs a plan just like terraform plan does, but then actually carries out the planned changes to each resource using the relevant infrastructure provider's API. It asks for confirmation from the user before making any changes, unless it was explicitly told to skip approval.
+
+#### destroying
+
+The terraform destroy command destroys all of the resources being managed by the current working directory and workspace, using state data to determine which real world objects correspond to managed resources. Like terraform apply, it asks for confirmation before proceeding.
+
+A destroy behaves exactly like deleting every resource from the configuration and then running an apply, except that it doesn't require editing the configuration. This is more convenient if you intend to provision similar resources at a later date.
+
+### Authentication
+
+https://www.terraform.io/docs/cli/auth/index.html
+
+
+https://www.terraform.io/docs/cli/index.html
+
+
+
+
+
+
+####################
+https://learn.hashicorp.com/tutorials/terraform/associate-study?in=terraform/certification
+
 
 ################
 
@@ -1461,7 +1786,7 @@ terraform plan -out=path
 terraform apply path
 ```
 
-We can prevent terraform from queryin the current state during operationes as terraform plan ( with the option `-refresh=false`) if we need to reduce the amount of API calls to a provider when doing some plan and apply.
+We can prevent terraform from queryin the current state during operations as terraform plan ( with the option `-refresh=false`) if we need to reduce the amount of API calls to a provider when doing some plan and apply.
 
 ### terraform apply
 
