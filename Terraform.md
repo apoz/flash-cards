@@ -1652,7 +1652,10 @@ terraform logout
  https://learn.hashicorp.com/tutorials/terraform/associate-study?in=terraform/certification
 
  
+## Tutorials
 
+https://learn.hashicorp.com/collections/terraform/configuration-language
+https://learn.hashicorp.com/tutorials/terraform/variables?in=terraform/configuration-language
 
 
 
@@ -1986,6 +1989,29 @@ Terraform also automatically loads a number of variable definitions files if the
 3 - Environment variable - part of your shell environment
 4 - Default config - default value in variables.tf
 5 - User manual entry - if not specified, prompt the user for entry
+
+
+You can include also validation rules for the variable inputs:
+```
+variable "resource_tags" {
+  description = "Tags to set for all resources"
+  type        = map(string)
+  default     = {
+    project     = "my-project",
+    environment = "dev"
+  }
+
+  validation {
+    condition     = length(var.resource_tags["project"]) <= 16 && length(regexall("[^a-zA-Z0-9-]", var.resource_tags["project"])) == 0
+    error_message = "The project tag must be no more than 16 characters, and only contain letters, numbers, and hyphens."
+  }
+
+  validation {
+    condition     = length(var.resource_tags["environment"]) <= 8 && length(regexall("[^a-zA-Z0-9-]", var.resource_tags["environment"])) == 0
+    error_message = "The environment tag must be no more than 8 characters, and only contain letters, numbers, and hyphens."
+  }
+}
+```
 
 ##### Variables with undefined values
 
