@@ -1663,7 +1663,7 @@ https://learn.hashicorp.com/tutorials/terraform/variables?in=terraform/configura
 ####################
 https://learn.hashicorp.com/tutorials/terraform/associate-study?in=terraform/certification
 
-
+https://medium.com/bb-tutorials-and-thoughts/250-practice-questions-for-terraform-associate-certification-7a3ccebe6a1a
 ################
 
 
