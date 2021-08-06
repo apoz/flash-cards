@@ -1657,7 +1657,12 @@ terraform logout
 https://learn.hashicorp.com/collections/terraform/configuration-language
 https://learn.hashicorp.com/tutorials/terraform/variables?in=terraform/configuration-language
 
+PENDIENTE
 
+Requisitos publicación módulo
+CLI commands
+Terraform cloud  & Enterprise
+Supported version control systems in terraform cloud
 
 
 ####################
