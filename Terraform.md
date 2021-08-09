@@ -1,5 +1,106 @@
 # Terraform
 
+## Exam objectives
+
+
+### 1 Understand infrastructure as code (IaC) concepts
+#### 1a Explain what IaC is
+
+#### 1b Describe advantages of IaC patterns
+
+### 2 Understand Terraform's purpose (vs other IaC)
+#### 2a	Explain multi-cloud and provider-agnostic benefits
+#### 2b	Explain the benefits of state
+
+### 3 Understand Terraform basics
+#### 3a Handle Terraform and provider installation and versioning
+#### 3b Describe plugin based architecture
+#### 3c Demonstrate using multiple providers
+#### 3d	Describe how Terraform finds and fetches providers
+#### 3e Explain when to use and not use provisioners and when to use local-exec or remote-exec
+
+### 4 Use the Terraform CLI (outside of core workflow)
+
+Summary of commands
+- *apply* executes the actions in a terraform plan. ```terraform apply [plan file]```. If you don't provide a plan file it will execute a new terraform plan. ```-auto-approve``` option. If filename is provided, it will NOT prompt for approval.
+- *console* provides an interactive console for evaluating expressions.This is useful for testing interpolations before using them in configurations, and for interacting with any values currently saved in state.If remote state is used by the current backend, Terraform will read the state for the current workspace from the backend before evaluating any expressions.
+- *destroy* command is a convenient way to destroy all remote objects managed by a particular Terraform configuration. Alias for ```terraform apply -destroy```.
+- *fmt* The terraform fmt command is used to rewrite Terraform configuration files to a canonical format and style. By default, fmt scans the current directory for configuration files.
+- *force-unlock* Manually unlock the state for the defined configuration. This will NOT modify the infra. ```terraform force-unlock [options] LOCK_ID ```.Terraform will output this lock ID if unlocking fails. This lock ID acts as a nonce, ensuring that locks and unlocks target the correct lock.
+- *get* command is used to download and update modules mentioned in the root module.
+- *graph* command is used to generate a visual representation of either a configuration or execution plan. The output is in the DOT format, which can be used by GraphViz to generate charts. ```terraform graph | dot -Tsvg > graph.svg```
+- *import* The terraform import command is used to import existing resources into Terraform. ```terraform import [options] ADDRESS ID```
+- *init* The terraform init command is used to initialize a working directory containing Terraform configuration files. 
+  - Backend initialization: Idempotent.Re-running init with an already-initialized backend will update the working directory to use the new backend settings. Either -reconfigure or -migrate-state must be supplied to update the backend configuration.
+  - Child module installation
+  - Plugin installation. Selected providers are written in dependency lock file.
+- *login*/*logout* command can be used to automatically obtain and save an API token for Terraform Cloud, Terraform Enterprise, or any other host that offers Terraform services.
+- *output* command is used to extract the value of an output variable from the state file.
+- *plan* command creates an execution plan. ```-out=FILE``` By default, creating a plan consists of:
+  - Reading the current state of any already-existing remote objects to make sure that the Terraform state is up-to-date.
+  - Comparing the current configuration to the prior state and noting any differences.
+  - Proposing a set of change actions that should, if applied, make the remote objects match the configuration.
+Plan modes:
+  - Destroy mode: ```-destroy````
+  - Refresh-only mode: only update terraform state and ```-refresh-only```.
+Options:
+  - ```-refresh=false``` Disables the default mode of syncing terraform state with remote objects before checking config changes.
+  - ```-replace=TARGET```/ ```-target=ADDRESS```
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### 4a	Given a scenario: choose when to use terraform fmt to format code
+#### 4b	Given a scenario: choose when to use terraform taint to taint Terraform resources
+#### 4c Given a scenario: choose when to use terraform import to import existing infrastructure into your Terraform state
+#### 4d	Given a scenario: choose when to use terraform workspace to create workspaces
+#### 4e	Given a scenario: choose when to use terraform state to view Terraform state
+#### 4f	Given a scenario: choose when to enable verbose logging and what the outcome/value is
+
+### 5 	Interact with Terraform modules
+#### 5a	Contrast module source options
+#### 5b Interact with module inputs and outputs
+#### 5c	Describe variable scope within modules/child modules
+#### 5d	Discover modules from the public Terraform Module Registry
+#### 5e	Defining module version
+### 6	Navigate Terraform workflow
+#### 6a Describe Terraform workflow ( Write -> Plan -> Create )
+#### 6b	Initialize a Terraform working directory (terraform init)
+#### 6c Validate a Terraform configuration (terraform validate)
+#### 6d Generate and review an execution plan for Terraform (terraform plan)
+#### 6e	Execute changes to infrastructure with Terraform (terraform apply)
+#### 6f Destroy Terraform managed infrastructure (terraform destroy)
+### 7 	Implement and maintain state
+#### 7a	Describe default local backend
+#### 7b	Outline state locking
+#### 7c	Handle backend authentication methods
+#### 7d	Describe remote state storage mechanisms and supported standard backends
+#### 7e	Describe effect of Terraform refresh on state
+#### 7f	Describe backend block in configuration and best practices for partial configurations
+#### 7g Understand secret management in state files
+### 8	Read, generate, and modify configuration
+#### 8a	Demonstrate use of variables and outputs
+#### 8b	Describe secure secret injection best practice
+#### 8c	Understand the use of collection and structural types
+#### 8d	Create and differentiate resource and data configuration
+#### 8f	Use Terraform built-in functions to write configuration
+#### 8e	Use resource addressing and resource parameters to connect resources together
+#### 8g	Configure resource using a dynamic block
+#### 8h	Describe built-in dependency management (order of execution based)
+### 9 Understand Terraform Cloud and Enterprise capabilities
+#### 9a Describe the benefits of Sentinel, registry, and workspaces
+#### 9b Differentiate OSS and TFE workspaces
+#### 9c Summarize features of Terraform Cloud
+
 ## Terraform cloud
 
 ### Terraform cloud supported VCSs
