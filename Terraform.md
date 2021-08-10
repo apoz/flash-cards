@@ -64,6 +64,7 @@ Options:
 - **taint** The terraform taint command informs Terraform that a particular object has become degraded or damaged. Terraform represents this by marking the object as "tainted" in the Terraform state, in which case Terraform will propose to replace it in the next plan you create.
 If your intent is to force replacement of a particular object even though there are no configuration changes that would require it, we recommend instead to use the -replace option with terraform apply. For example: ```terraform apply -replace="aws_instance.example[0]"```
 Creating a plan with the "replace" option is superior to using terraform taint because it will allow you to see the full effect of that change before you take any externally-visible action. When you use terraform taint to get a similar effect, you risk someone else on your team creating a new plan against your tainted object before you've had a chance to review the consequences of that change yourself.
+It is not possible to taint an entire module. Instead, each resource within the module must be tainted separately.
 - **untaint** If Terraform currently considers a particular object as tainted but you've determined that it's actually functioning correctly and need not be replaced, you can use terraform untaint to remove the taint marker from that object.
 - **validate** The terraform validate command validates the configuration files in a directory, referring only to the configuration and not accessing any remote services such as remote state, provider APIs, etc.
 - **version** The terraform version displays the current version of Terraform and all installed plugins.
@@ -81,15 +82,41 @@ Creating a plan with the "replace" option is superior to using terraform taint b
 #### 4d	Given a scenario: choose when to use terraform workspace to create workspaces
 #### 4e	Given a scenario: choose when to use terraform state to view Terraform state
 #### 4f	Given a scenario: choose when to enable verbose logging and what the outcome/value is
+Terraform has detailed logs that can be activated setting the TF_LOG env variable to any value. You can set that variable to TRACE,DEBUG,INFO,WARN or ERROR to change the verbosity of the logs.
+
+There's a TF_LOG_PATH variable also to store the terraform log to the specified log.
 
 ### 5 	Interact with Terraform modules
 #### 5a	Contrast module source options
+The Terraform Registry is integrated directly into Terraform, so a Terraform configuration can refer to any module published in the registry. The syntax for specifying a registry module is ```<NAMESPACE>/<NAME>/<PROVIDER>```. For example: ```hashicorp/consul/aws```. To use private registry module ```<HOSTNAME>/<NAMESPACE>/<NAME>/<PROVIDER>```
+```
+module "vpc" {
+  source = "app.terraform.io/example_corp/vpc/aws"
+  version = "0.9.3"
+}
+```
+
+Publishing a module:
+The list below contains all the requirements for publishing a module:
+- **GitHub** The module must be on GitHub and must be a public repo. This is only a requirement for the public registry. If you're using a private registry, you may ignore this requirement.
+
+- **Named terraform-<PROVIDER>-<NAME>**. Module repositories must use this three-part name format, where <NAME> reflects the type of infrastructure the module manages and <PROVIDER> is the main provider where it creates that infrastructure. The <NAME> segment can contain additional hyphens. Examples: terraform-google-vault or terraform-aws-ec2-instance.
+
+- **Repository description**. The GitHub repository description is used to populate the short description of the module. This should be a simple one sentence description of the module.
+
+- **Standard module structure**. The module must adhere to the standard module structure. This allows the registry to inspect your module and generate documentation, track resource usage, parse submodules and examples, and more.
+
+- ***x.y.z tags for releases**. The registry uses tags to identify module versions. Release tag names must be a semantic version, which can optionally be prefixed with a v. For example, v1.0.4 and 0.9.2. To publish a module initially, at least one release tag must be present. Tags that don't look like version numbers are ignored.
+
+
 #### 5b Interact with module inputs and outputs
+
 #### 5c	Describe variable scope within modules/child modules
 #### 5d	Discover modules from the public Terraform Module Registry
 #### 5e	Defining module version
 ### 6	Navigate Terraform workflow
 #### 6a Describe Terraform workflow ( Write -> Plan -> Create )
+
 #### 6b	Initialize a Terraform working directory (terraform init)
 #### 6c Validate a Terraform configuration (terraform validate)
 #### 6d Generate and review an execution plan for Terraform (terraform plan)
