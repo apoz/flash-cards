@@ -64,16 +64,14 @@ Options:
 - *taint* The terraform taint command informs Terraform that a particular object has become degraded or damaged. Terraform represents this by marking the object as "tainted" in the Terraform state, in which case Terraform will propose to replace it in the next plan you create.
 If your intent is to force replacement of a particular object even though there are no configuration changes that would require it, we recommend instead to use the -replace option with terraform apply. For example: ```terraform apply -replace="aws_instance.example[0]"```
 Creating a plan with the "replace" option is superior to using terraform taint because it will allow you to see the full effect of that change before you take any externally-visible action. When you use terraform taint to get a similar effect, you risk someone else on your team creating a new plan against your tainted object before you've had a chance to review the consequences of that change yourself.
-
-- *untaint* f Terraform currently considers a particular object as tainted but you've determined that it's actually functioning correctly and need not be replaced, you can use terraform untaint to remove the taint marker from that object.
-
-
-
-
-
-
-
-
+- *untaint* If Terraform currently considers a particular object as tainted but you've determined that it's actually functioning correctly and need not be replaced, you can use terraform untaint to remove the taint marker from that object.
+- *validate* The terraform validate command validates the configuration files in a directory, referring only to the configuration and not accessing any remote services such as remote state, provider APIs, etc.
+- *version* The terraform version displays the current version of Terraform and all installed plugins.
+- *workspace list* The terraform workspace list command is used to list all existing workspaces.
+- *workspace select* command is used to choose a different workspace to use for further operations.
+- *workspace new* command is used to create a new workspace and selects it.
+- *workspace delete* To delete an workspace, it must already exist, it must have an empty state, and it must not be your current workspace. If the workspace state is not empty, Terraform will not allow you to delete it unless the -force flag is specified.
+- *workspace show* command is used to output the current workspace.
 
 
 
