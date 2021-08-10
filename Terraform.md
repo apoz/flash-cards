@@ -110,7 +110,6 @@ The list below contains all the requirements for publishing a module:
 
 
 #### 5b Interact with module inputs and outputs
-
 #### 5c	Describe variable scope within modules/child modules
 #### 5d	Discover modules from the public Terraform Module Registry
 #### 5e	Defining module version
