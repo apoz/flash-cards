@@ -41,7 +41,7 @@ Summary of commands
   - Comparing the current configuration to the prior state and noting any differences.
   - Proposing a set of change actions that should, if applied, make the remote objects match the configuration.
 Plan modes:
-  - Destroy mode: ```-destroy````
+  - Destroy mode: ```-destroy```
   - Refresh-only mode: only update terraform state and ```-refresh-only```.
 Options:
   - ```-refresh=false``` Disables the default mode of syncing terraform state with remote objects before checking config changes.
