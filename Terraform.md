@@ -2336,7 +2336,7 @@ data.<PROVIDER>_<TYPE>.<NAME>.<ATTRIBUTE>
 
 ## Terraform logging
 
-Terraform has detailed logs that can be activated setting the TF_LOG env variable to any value. You can set that variable to TRACE,DEBUG,INFO,WARN or ERROR to change the verbosity of the logs.
+Terraform has detailed that can be activated setting the TF_LOG env variable to any value. You can set that variable to TRACE,DEBUG,INFO,WARN or ERROR to change the verbosity of the logs.
 
 There's a TF_LOG_PATH variable also to store the terraform log to the specified log.
 
@@ -2653,7 +2653,7 @@ There are mainly 2 types of provisioners:
 
 - *local-exec*: executes something locally after the resource is created. A typical use-case is the execution on ansible playbooks run after the resource is created.
 - *remote-exec*: allows us to execute things in the remote resource.
-There are some other provisioners who can be checked in the documentation.
+- *file* The file provisioner is used to copy files or directories from the machine executing Terraform to the newly created resource.
 
 According to some other classification criteria:
 - *Creation-Time provisioner* are only run during creation, NOT during update or any other lifecycle change. If the creation provisioner fails, the resource is marked as `tainted`. If the `when` param is not set, it's a creation provisioner.
