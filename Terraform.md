@@ -14,7 +14,7 @@
 
 ### 3 Understand Terraform basics
 #### 3a Handle Terraform and provider installation and versioning
-#### 3b Describe plugin based architecture
+#### 3b Describe plugin based architecture
 #### 3c Demonstrate using multiple providers
 #### 3d	Describe how Terraform finds and fetches providers
 #### 3e Explain when to use and not use provisioners and when to use local-exec or remote-exec
@@ -73,8 +73,6 @@ It is not possible to taint an entire module. Instead, each resource within the 
 - **workspace new** command is used to create a new workspace and selects it.
 - **workspace delete** To delete an workspace, it must already exist, it must have an empty state, and it must not be your current workspace. If the workspace state is not empty, Terraform will not allow you to delete it unless the -force flag is specified.
 - **workspace show** command is used to output the current workspace.
-
-
 
 #### 4a	Given a scenario: choose when to use terraform fmt to format code
 #### 4b	Given a scenario: choose when to use terraform taint to taint Terraform resources
@@ -303,7 +301,7 @@ Within the block body (between { and }) are the configuration arguments for the 
 
 ##### Providers
 
-Each resource type is implemented by a **provider**, which is a plugin for Terraform that offers a collection of resource types.A provider usually provides resources to manage a single cloud or on-premises infrastructure platform. Providers are distributed separately from Terraform itself, but Terraform can automatically install most providers when initializing a working directory.
+Each resource type is implemented by a **provider**, which is a plugin for Terraform that offers a collection of resource types. A provider usually provides resources to manage a single cloud or on-premises infrastructure platform. Providers are distributed separately from Terraform itself, but Terraform can automatically install most providers when initializing a working directory.
 
 ###### Requiring providers
 
@@ -638,8 +636,12 @@ data "local_file" "foo" {
 }
 ```
 
+Exporta:
+- *content*: The raw content of the file that was read.
+- *content_base64*: The content in base64
 
-##### template_file
+
+##### template_file DEPRECATED by the templatefile function
 
 The template_file data source renders a template from a template string, which is usually loaded from an external file.
 ```
