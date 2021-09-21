@@ -5,6 +5,12 @@ Examen -> https://docs.microsoft.com/en-us/learn/certifications/exams/az-900
 
 https://github.com/AzureMentor/Azure-AZ-900-Study-Guide
 
+https://github.com/osmanys/az900-training
+
+https://github.com/davidcervigonluna/AZ-900FAQ
+
+https://ptgmedia.pearsoncmg.com/images/9780135732182/downloads/9780135732182_URLs.pdf
+
 Exam topics
 
 

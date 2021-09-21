@@ -1,4 +1,5 @@
 # Kubernetes
+https://github.com/kodekloudhub/certified-kubernetes-administrator-course
 
 ## Core Concepts
 
@@ -8,7 +9,7 @@ There are 2 types of nodes:
 * _Worker Nodes_: they just run containers
   * _container-runtime-engine_: For example docker, containerd, rocket.
   * _kubelet_: Responsible of managing everything in the node, report status, create containers, etc.
-  * _kube-proxy_: responsible of the management of the communications for every container to be able to communicate with others containers.
+  * _kube-proxy service_: responsible of the management of the communications for every container to be able to communicate with others containers.
 * _Master Nodes_: control plane of Kubernetes cluster. Contains:
   * _ETCD_: KV store
   * _kube-scheduler_: Entity that decides which container has to run where.
