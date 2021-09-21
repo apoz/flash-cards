@@ -1372,13 +1372,31 @@ Resources that use the for_each argument will appear in expressions as a map of 
 
 A dynamic block acts much like a for expression, but produces nested blocks instead of a complex typed value. It iterates over a given complex value, and generates a nested block for each element of that complex value.
 
+```
+resource "aws_elastic_beanstalk_environment" "tfenvtest" {
+  name                = "tf-test-name"
+  application         = "${aws_elastic_beanstalk_application.tftest.name}"
+  solution_stack_name = "64bit Amazon Linux 2018.03 v2.11.4 running Go 1.12.6"
+
+  dynamic "setting" {
+    for_each = var.settings
+    content {
+      namespace = setting.value["namespace"]
+      name = setting.value["name"]
+      value = setting.value["value"]
+    }
+  }
+}
+
+```
+
 - The label of the dynamic block ("setting" in the example above) specifies what kind of nested block to generate.
 - The for_each argument provides the complex value to iterate over.
 - The iterator argument (optional) sets the name of a temporary variable that represents the current element of the complex value. If omitted, the name of the variable defaults to the label of the dynamic block ("setting" in the example above).
 - The labels argument (optional) is a list of strings that specifies the block labels, in order, to use for each generated block. You can use the temporary iterator variable in this value.
 - The nested content block defines the body of each generated block. You can use the temporary iterator variable inside this block.
 
-ince the for_each argument accepts any collection or structural value, you can use a for expression or splat expression to transform an existing collection.
+Since the for_each argument accepts any collection or structural value, you can use a for expression or splat expression to transform an existing collection.
 
 The iterator object (setting in the example above) has two attributes:
 
@@ -1532,7 +1550,7 @@ There are some important limitations on backend configuration:
 - A configuration can only provide one backend block.
 - A backend block cannot refer to named values (like input variables, locals, or data source attributes).
 
-Whenever a configuration's backend changes, you must run terraform init again to validate and configure the backend before you can perform any plans, applies, or state operations.
+Whenever a configuration's backend changes, you must run terraform init again to validate and configure the backend before you can perform any plans, applies, or state operations. Either ```-reconfigure``` (does NOT migrate state) or ```-migrate-state``` must be supplied to update the backend configuration
 
 Terraform's backends are divided into two main types, according to how they handle state and operations:
 
