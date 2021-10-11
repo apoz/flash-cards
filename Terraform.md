@@ -2673,7 +2673,7 @@ There are mainly 2 types of provisioners:
 
 - *local-exec*: executes something locally after the resource is created. A typical use-case is the execution on ansible playbooks run after the resource is created.
 - *remote-exec*: allows us to execute things in the remote resource.
-- *file* The file provisioner is used to copy files or directories from the machine executing Terraform to the newly created resource.
+- *file* The file provisioner is used to copy files or directories from the machine executing Terraform to the newly created resource. You have to specify a `source`  with the local path to the file to be copied or `content` to set the content of the file.
 
 According to some other classification criteria:
 - *Creation-Time provisioner* are only run during creation, NOT during update or any other lifecycle change. If the creation provisioner fails, the resource is marked as `tainted`. If the `when` param is not set, it's a creation provisioner.
