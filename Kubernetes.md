@@ -292,3 +292,13 @@ or
 
 kubectl scale --replicas=6 -f object_type  object_name
 ````
+
+
+### Drain a node
+
+```
+kubectl drain <node name> --ignore-daemonsets --force
+
+#Uncordon the node to allow new pods to be scheduled there again
+kubectl uncordon <node name>
+```
