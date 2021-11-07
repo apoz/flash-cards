@@ -232,6 +232,12 @@ kubectl describe pod myapp-pod
 ### Get PODs
 ````
 kubectl get pods
+
+Params : 
+
+-o json | yaml | wide
+--selector
+-- sort-by
 ````
 
 ### Get system PODs
@@ -301,4 +307,15 @@ kubectl drain <node name> --ignore-daemonsets --force
 
 #Uncordon the node to allow new pods to be scheduled there again
 kubectl uncordon <node name>
+```
+
+### Api resources
+
+```
+kubectl api-resources
+```
+
+### Getting a sample of a yaml file
+```
+kubectl create deployment my-deployment --image=nginx --dry-run=client -o yaml
 ```
