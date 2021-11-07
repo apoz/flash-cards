@@ -345,7 +345,8 @@ data:
   user-interface.properties: |
     color.good=purple
     color.bad=yellow
-    allow.textmode=true    
+    allow.textmode=true
+immutable: true    # Not variables, better performance as kubelet does not have to check for updates periodically
 ```
 
 
@@ -398,4 +399,100 @@ spec:
         - key: "user-interface.properties"
           path: "user-interface.properties"
 
+```
+
+### Secret
+A Secret is an object that contains a small amount of sensitive data such as a password, a token, or a key. Such information might otherwise be put in a Pod specification or in a container image. Using a Secret means that you don't need to include confidential data in your application code.
+
+Secrets are similar to ConfigMaps but are specifically intended to hold confidential data.
+
+Kubernetes Secrets are, by default, stored unencrypted in the API server's underlying data store (etcd). Anyone with API access can retrieve or modify a Secret, and so can anyone with access to etcd. Additionally, anyone who is authorized to create a Pod in a namespace can use that access to read any Secret in that namespace; this includes indirect access such as the ability to create a Deployment.
+
+
+- Enable Encryption at Rest for Secrets.
+- Enable or configure RBAC rules that restrict reading data in Secrets (including via indirect means).
+- Where appropriate, also use mechanisms such as RBAC to limit which principals are allowed to create new Secrets or replace existing ones.
+
+Pod in three ways:
+- As files in a volume mounted on one or more of its containers.
+- As container environment variable.
+- By the kubelet when pulling images for the Pod.
+
+
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-tls
+type: kubernetes.io/tls
+data:
+  # the data is abbreviated in this example HAS to be base64 encoded. We can use stringData if we want normal encoding.
+  tls.crt: |
+        MIIC2DCCAcCgAwIBAgIBATANBgkqh ...
+  tls.key: |
+        MIIEpgIBAAKCAQEA7yn3bRHQ5FHMQ ...
+```
+
+Example of pod making use of a secret:
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
+spec:
+  containers:
+  - name: mypod
+    image: redis
+    volumeMounts:
+    - name: foo
+      mountPath: "/etc/foo"
+      readOnly: true
+  volumes:
+  - name: foo
+    secret:
+      secretName: mysecret
+
+# OR if we want to specify paths
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
+spec:
+  containers:
+  - name: mypod
+    image: redis
+    volumeMounts:
+    - name: foo
+      mountPath: "/etc/foo"
+      readOnly: true
+  volumes:
+  - name: foo
+    secret:
+      secretName: mysecret
+      items:
+      - key: username
+        path: my-group/my-username
+        
+# OR using them as environment variables
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secret-env-pod
+spec:
+  containers:
+  - name: mycontainer
+    image: redis
+    env:
+      - name: SECRET_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: mysecret
+            key: username
+      - name: SECRET_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: mysecret
+            key: password
+  restartPolicy: Never
 ```
