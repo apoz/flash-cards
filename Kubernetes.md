@@ -587,4 +587,31 @@ Each probe has one of three results:
 
 The restartPolicy applies to all containers in the Pod. restartPolicy only refers to restarts of the containers by the kubelet on the same node.
  
+ #### Init containers
+ [here] (https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)
+
+ #### Scheduling pods
  
+ [sched documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/)
+ 
+ [nodeSelector documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/)
+ 
+ We can set flags we can specify for the kube-scheduler.
+ 
+ Or we can use a nodeName to specify the node directly:
+ ```
+ apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+  nodeName: kube-01
+ ```
+ 
+ Command to manage label:
+ ```
+ kubectl label nodes nodename  special=true
+ ```
