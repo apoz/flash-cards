@@ -536,3 +536,55 @@ Here are some examples of workload resources that manage one or more Pods:
 - StatefulSet
 - DaemonSet
 
+#### Resource management in Pods
+
+[here](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+
+When you specify a Pod, you can optionally specify how much of each resource a Container needs. The most common resources to specify are CPU and memory (RAM); there are others.
+
+When you specify the resource request for Containers in a Pod, the scheduler uses this information to decide which node to place the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so that the running container is not allowed to use more of that resource than the limit you set. The kubelet also reserves at least the request amount of that system resource specifically for that container to use.
+
+If the node where a Pod is running has enough of a resource available, it's possible (and allowed) for a container to use more resource than its request for that resource specifies. However, a container is not allowed to use more than its resource limit.
+
+For example, if you set a memory request of 256 MiB for a container, and that container is in a Pod scheduled to a Node with 8GiB of memory and no other Pods, then the container can try to use more RAM.
+
+If you set a memory limit of 4GiB for that Container, the kubelet (and container runtime) enforce the limit. The runtime prevents the container from using more than the configured resource limit. For example: when a process in the container tries to consume more than the allowed amount of memory, the system kernel terminates the process that attempted the allocation, with an out of memory (OOM) error.
+
+Limits can be implemented either reactively (the system intervenes once it sees a violation) or by enforcement (the system prevents the container from ever exceeding the limit). Different runtimes can have different ways to implement the same restrictions.
+
+Each Container of a Pod can specify one or more of the following:
+
+- spec.containers[].resources.limits.cpu
+- spec.containers[].resources.limits.memory
+- spec.containers[].resources.limits.hugepages-<size>
+- spec.containers[].resources.requests.cpu
+- spec.containers[].resources.requests.memory
+- spec.containers[].resources.requests.hugepages-<size>
+
+#### Container Probes
+ [here](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes)
+ 
+ A Probe is a diagnostic performed periodically by the kubelet on a Container. To perform a diagnostic, the kubelet calls a Handler implemented by the container. There are three types of handlers:
+
+- *ExecAction*: Executes a specified command inside the container. The diagnostic is considered successful if the command exits with a status code of 0.
+- *TCPSocketAction*: Performs a TCP check against the Pod's IP address on a specified port. The diagnostic is considered successful if the port is open.
+- *HTTPGetAction*: Performs an HTTP GET request against the Pod's IP address on a specified port and path. The diagnostic is considered successful if the response has a status code greater than or equal to 200 and less than 400.
+
+Each probe has one of three results:
+- **Success**: The container passed the diagnostic.
+- **Failure**: The container failed the diagnostic.
+- **Unknown**: The diagnostic failed, so no action should be taken.
+
+ The kubelet can optionally perform and react to three kinds of probes on running containers:
+- **livenessProbe**: Indicates whether the container is running. If the liveness probe fails, the kubelet kills the container, and the container is subjected to its restart policy. If a Container does not provide a liveness probe, the default state is Success.
+- **readinessProbe**: Indicates whether the container is ready to respond to requests. If the readiness probe fails, the endpoints controller removes the Pod's IP address from the endpoints of all Services that match the Pod. The default state of readiness before the initial delay is Failure. If a Container does not provide a readiness probe, the default state is Success.
+- **startupProbe**: Indicates whether the application within the container is started. All other probes are disabled if a startup probe is provided, until it succeeds. If the startup probe fails, the kubelet kills the container, and the container is subjected to its restart policy. If a Container does not provide a startup probe, the default state is Success.
+
+ #### Restart Policies
+ [here](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#restart-policy)
+ 
+ The spec of a Pod has a restartPolicy field with possible values Always, OnFailure, and Never. The default value is Always.
+
+The restartPolicy applies to all containers in the Pod. restartPolicy only refers to restarts of the containers by the kubelet on the same node.
+ 
+ 
