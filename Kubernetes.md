@@ -615,3 +615,6 @@ spec:
  ```
  kubectl label nodes nodename  special=true
  ```
+### daemonSet
+ 
+ [documentation](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/)
