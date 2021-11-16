@@ -618,3 +618,5 @@ spec:
 ### daemonSet
  
  [documentation](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/)
+ 
+ K8s creates a copy of the pod in each node.
