@@ -319,7 +319,10 @@ kubectl api-resources
 ```
 kubectl create deployment my-deployment --image=nginx --dry-run=client -o yaml
 ```
-
+### Service endpoints
+```
+kubectl get endpoints <SERVICE_NAME>
+```
 
 ## Kubernetes concepts
 ### ConfigMap
@@ -620,3 +623,16 @@ spec:
  [documentation](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/)
  
  K8s creates a copy of the pod in each node.
+ 
+ ### networkPolicies
+ 
+ [doc](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
+ 
+ ### service
+ 
+ [doc](https://kubernetes.io/docs/concepts/services-networking/service/)
+ 
+ Types of services:
+ - ClusterIp: expose applications inside the cluster network. Clients will be some other pods.
+ - nodePort: expose applications outside the cluster network.
+ - loadBalancer: external cloud balancer in the cloud.
