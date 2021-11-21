@@ -636,3 +636,12 @@ spec:
  - ClusterIp: expose applications inside the cluster network. Clients will be some other pods.
  - nodePort: expose applications outside the cluster network.
  - loadBalancer: external cloud balancer in the cloud.
+
+ ### ingress
+ 
+ [doc](https://kubernetes.io/docs/concepts/services-networking/ingress/)
+ 
+ It's a k8s object that manages the external access to services in k8s
+ 
+ ### volumes
+ [doc](https://kubernetes.io/docs/concepts/storage/volumes/)
