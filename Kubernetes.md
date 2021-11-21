@@ -645,3 +645,17 @@ spec:
  
  ### volumes
  [doc](https://kubernetes.io/docs/concepts/storage/volumes/)
+
+Types:
+ - emptyDir
+ - hostPath
+ These are ephemeral volumes.
+ 
+ ### persistentVolumes
+ [doc](https://kubernetes.io/docs/concepts/storage/persistent-volumes/)
+ 
+ ### storageClass
+ [doc](https://kubernetes.io/docs/concepts/storage/storage-classes/)
+ 
+ ### persistentVolumeClaim
+ []()
