@@ -334,6 +334,13 @@ kubectl config get-contexts
 #to use one
 kubectl config use-context CONTEXT_NAME
 ```
+### Get pod consuming more cpu with selector
+
+
+```
+kubectl top pod -n web --sort-by cpu --selector app=auth
+```
+
 
 ## Kubernetes concepts
 ### ConfigMap
