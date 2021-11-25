@@ -319,9 +319,20 @@ kubectl api-resources
 ```
 kubectl create deployment my-deployment --image=nginx --dry-run=client -o yaml
 ```
+
 ### Service endpoints
 ```
 kubectl get endpoints <SERVICE_NAME>
+```
+
+### Get different configs in kubectl config file 
+
+
+```
+kubectl config get-contexts
+
+#to use one
+kubectl config use-context CONTEXT_NAME
 ```
 
 ## Kubernetes concepts
@@ -659,3 +670,7 @@ Types:
  
  ### persistentVolumeClaim
  []()
+ 
+ ### Taints and tolerations
+ 
+ [doc](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
